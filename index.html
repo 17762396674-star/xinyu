@@ -567,7 +567,7 @@
 
   <div id="brand">
     <div class="t">心屿 <b>·</b> 见心安</div>
-    <div class="s">校园 VR 音乐疗愈系统 · V1.3</div>
+    <div class="s">校园 VR 音乐疗愈系统 · V2.0</div>
   </div>
 
   <div id="status" class="panel">场景 <b id="st-scene">—</b> · 音乐 <b id="st-music">未播放</b> · 发现 <b id="st-found">0</b></div>
@@ -2164,7 +2164,7 @@ const DISCOVER = {
   sceneFound(sid){ return (this.ids[sid]||[]).filter(x=>this.found.has(x)).length; },
   sceneDone(sid){ const t=this.sceneTotal(sid); return t>0 && this.sceneFound(sid)===t; },
   markCount(){ return Object.keys(this.marks).filter(k=>this.marks[k]).length; },
-  allDone(){ const k=Object.keys(this.ids); return k.length>=5 && k.every(x=>this.sceneDone(x)); }
+  allDone(){ const k=Object.keys(this.ids); return k.length>=SCENES.length && k.every(x=>this.sceneDone(x)); }
 };
 DISCOVER.load();
 const REWARD = { unlocked:false };
@@ -2229,7 +2229,7 @@ function updateFoundUI(){
   const el = $('#st-found'); if(!el) return;
   const t = DISCOVER.sceneTotal(curSceneId), f = DISCOVER.sceneFound(curSceneId);
   el.textContent = t ? (f + '/' + t) : '0';
-  el.title = '已集 ' + DISCOVER.markCount() + ' / 5 枚心屿印记';
+  el.title = '已集 ' + DISCOVER.markCount() + ' / ' + SCENES.length + ' 枚心屿印记';
 }
 
 function sceneComplete(sid){
@@ -2239,10 +2239,10 @@ function sceneComplete(sid){
   const s = SCENES.find(x=>x.id===sid);
   const n = DISCOVER.markCount();
   showHealText('✦ 一枚心屿印记',
-    '你把「' + (s?s.name:'') + '」角落里的 ' + DISCOVER.sceneTotal(sid) + ' 处细节都看过了。已集 ' + n + ' / 5 枚印记。' +
-    (n>=5 ? '' : '还有别的场景在等你。'), 11000);
+    '你把「' + (s?s.name:'') + '」角落里的 ' + DISCOVER.sceneTotal(sid) + ' 处细节都看过了。已集 ' + n + ' / ' + SCENES.length + ' 枚印记。' +
+    (n>=SCENES.length ? '' : '还有别的场景在等你。'), 11000);
   updateFoundUI();
-  if(n>=5) unlockReward();
+  if(n>=SCENES.length) unlockReward();
 }
 
 function unlockReward(){
@@ -2251,7 +2251,7 @@ function unlockReward(){
   try{ localStorage.setItem('xinyu_reward_v1','1'); }catch(e){}
   buildMusicList();
   setTimeout(()=>showHealText('解锁 · 心屿回声',
-    '你走遍了五处角落，也记住了它们。这首《心屿 · 回声》只为认真看过的人响起——去音乐列表里找它。', 12000), 5200);
+    '你走遍了六处角落，也记住了它们。这首《心屿 · 回声》只为认真看过的人响起——去音乐列表里找它。', 12000), 5200);
 }
 
 function triggerHotspot(h){
@@ -2315,6 +2315,20 @@ controls.minDistance = 1.5;
 controls.maxDistance = 60;
 /* 移动端触摸手势：单指环视 · 双指缩放/平移 */
 controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+/* 镜头飞行：用于「走进树屋 / 走到小屋门口」这类大场景视角切换 */
+let camFly = null;
+function flyTo(pos, target, dur){
+  if(immersive) return;
+  camFly = {
+    p0:camera.position.clone(), t0:controls.target.clone(),
+    p1:new THREE.Vector3(pos[0],pos[1],pos[2]),
+    t1:new THREE.Vector3(target[0],target[1],target[2]),
+    t:0, dur:dur||1.8
+  };
+  controls.enabled = false;
+  haptic(18);
+}
 
 /* 触屏设备检测与提示文案 */
 const IS_COARSE = matchMedia('(pointer:coarse)').matches;
@@ -2702,6 +2716,431 @@ function updateListener(){
    3. 场景构建
    ============================================================ */
 const SceneBuilders = {};
+/* ============================================================
+   3d. 大地标：森林树屋 / 木屋 / 营火 / 溪流桥 · 及其他场景的大型建筑
+   ============================================================ */
+const Landmark = {};
+
+/* ---- 通用材质 ---- */
+function lmMats(){
+  const em=(c,k)=>({ emissive:new THREE.Color(c).multiplyScalar(k==null?0.2:k), emissiveIntensity:1 });
+  return {
+    bark:new THREE.MeshStandardMaterial(Object.assign({ color:'#5b4430', roughness:.95 }, em('#5b4430',0.22))),
+    plank:new THREE.MeshStandardMaterial(Object.assign({ color:'#9a7850', roughness:.82 }, em('#9a7850',0.2))),
+    plankDark:new THREE.MeshStandardMaterial(Object.assign({ color:'#7a5a38', roughness:.85 }, em('#7a5a38',0.22))),
+    roof:new THREE.MeshStandardMaterial(Object.assign({ color:'#8a4a3c', roughness:.88 }, em('#8a4a3c',0.26))),
+    stone:new THREE.MeshStandardMaterial(Object.assign({ color:'#787872', roughness:.95 }, em('#787872',0.18))),
+    warm:new THREE.MeshStandardMaterial({ color:'#ffd9a0', emissive:'#ffb45e', emissiveIntensity:1.3, roughness:.5 }),
+    leaf:new THREE.MeshStandardMaterial(Object.assign({ color:'#356046', roughness:.92 }, em('#356046',0.22))),
+    metal:new THREE.MeshStandardMaterial({ color:'#8a8f98', roughness:.45, metalness:.55 })
+  };
+}
+
+/* ---- 树屋：三层平台 + 敞廊 + 灯笼 + 绳梯 ---- */
+Landmark.treehouse = function(g, x, z, M, scale){
+  const s = scale || 1;
+  const grp = new THREE.Group(); grp.position.set(x,0,z); grp.scale.setScalar(s);
+  const y0 = 5.2;
+
+  // 主树干
+  const trunk = cyl(1.05,1.85,13.4,M.bark,10); trunk.position.y=6.7; grp.add(trunk);
+  // 板根
+  for(let i=0;i<5;i++){
+    const a=i/5*Math.PI*2;
+    const root=cyl(0.16,0.5,1.5,M.bark,6);
+    root.position.set(Math.cos(a)*0.9,0.6,Math.sin(a)*0.9);
+    root.rotation.z=Math.cos(a)*0.5; root.rotation.x=-Math.sin(a)*0.5;
+    grp.add(root);
+  }
+
+  // 平台 + 支撑
+  const plat = box(8.0,0.26,8.0,M.plankDark); plat.position.y=y0; grp.add(plat);
+  const plat2 = box(4.4,0.22,4.4,M.plankDark); plat2.position.set(0,y0-2.3,0); grp.add(plat2);
+  [[-3.2,-3.2],[3.2,-3.2],[-3.2,3.2],[3.2,3.2]].forEach(([dx,dz])=>{
+    const b=cyl(0.12,0.16,5.1,M.bark,6);
+    b.position.set(dx*0.78, 2.6, dz*0.78);
+    b.rotation.z=dx*0.05; b.rotation.x=-dz*0.05;
+    grp.add(b);
+  });
+
+  // 栏杆（四边，留出楼梯口）
+  const railH=0.95;
+  const mkRail=(w,d,px,pz)=>{ const r=box(w,0.09,d,M.plank); r.position.set(px,y0+railH,pz); grp.add(r); };
+  mkRail(8.0,0.09,0,-4.0); mkRail(8.0,0.09,0,4.0);
+  mkRail(0.09,8.0,-4.0,0); mkRail(0.09,6.2,4.0,-0.9);
+  for(let i=-3;i<=3;i++){
+    [[i*1.1,-4.0],[i*1.1,4.0]].forEach(([px,pz])=>{ const p=box(0.08,railH,0.08,M.plank); p.position.set(px,y0+railH/2,pz); grp.add(p); });
+    [[-4.0,i*1.1],[4.0,i*1.1]].forEach(([px,pz])=>{ const p=box(0.08,railH,0.08,M.plank); p.position.set(px,y0+railH/2,pz); grp.add(p); });
+  }
+
+  // 敞廊：四根柱 + 顶
+  const postH=2.9;
+  [[-3.4,-3.4],[3.4,-3.4],[-3.4,3.4],[3.4,3.4]].forEach(([dx,dz])=>{
+    const p=cyl(0.1,0.12,postH,M.plank,6); p.position.set(dx,y0+postH/2+0.13,dz); grp.add(p);
+  });
+  const roof = cone(6.2,1.9,M.roof,4); roof.position.set(0,y0+postH+1.05,0); roof.rotation.y=Math.PI/4; grp.add(roof);
+  const roofEdge = box(7.2,0.12,7.2,M.plankDark); roofEdge.position.set(0,y0+postH+0.14,0); grp.add(roofEdge);
+
+  // 靠墙小室（背板 + 书桌）
+  const wall = box(6.4,2.3,0.16,M.plank); wall.position.set(0,y0+1.28,-3.7); grp.add(wall);
+  const desk = box(1.8,0.1,0.7,M.plankDark); desk.position.set(0,y0+0.85,-3.1); grp.add(desk);
+  const lamp = sph(0.14,M.warm,8); lamp.position.set(0.6,y0+1.05,-3.1); grp.add(lamp);
+  const lampGlow = makeGlowSprite(glowTex('#ffd9a0','rgba(255,190,120,0.45)'), x+0.6, (y0+1.05)*s, z-3.1*s, 1.9);
+  lampGlow.material.opacity=0.65; g.add(lampGlow);
+
+  // 灯笼 ×3
+  const lamps=[];
+  [-3.0,0,3.0].forEach((dx,i)=>{
+    const lg=new THREE.Group(); lg.position.set(dx,y0+postH+0.1,3.6);
+    lg.add(put(cyl(0.012,0.012,0.5,M.metal,5),0,-0.25,0));
+    const body=sph(0.17,M.warm,8); body.position.y=-0.62; lg.add(body);
+    grp.add(lg); lamps.push(lg);
+    const gl=makeGlowSprite(glowTex('#ffd9a0','rgba(255,180,110,0.4)'), 0,0,0, 1.5);
+    gl.position.set(x+dx*s, (y0+postH-0.5)*s, z+3.6*s); gl.material.opacity=0.6; g.add(gl);
+  });
+
+  // 绳梯（从地面到平台侧边）
+  const ladder=new THREE.Group(); ladder.position.set(4.2,y0/2,1.4);
+  for(let i=0;i<9;i++){
+    const rung=box(0.7,0.05,0.07,M.plank); rung.position.y=-y0/2+0.3+i*0.55; ladder.add(rung);
+  }
+  [-0.35,0.35].forEach(dx=>{ const rope=cyl(0.02,0.02,y0,M.metal,5); rope.position.set(dx,-0.1,0); ladder.add(rope); });
+  grp.add(ladder);
+
+  // 高处的树冠（避开平台）
+  for(let i=0;i<7;i++){
+    const a=rnd0()*Math.PI*2, rr=5.2+rnd0()*3.4;
+    const c=cone(1.5+rnd0()*1.1, 2.6+rnd0()*1.4, M.leaf, 7);
+    c.position.set(Math.cos(a)*rr, 11.6+rnd0()*2.2, Math.sin(a)*rr);
+    grp.add(c);
+  }
+  g.add(grp);
+  return { group:grp, lamps, y0 };
+};
+function rnd0(){ return Math.random(); }
+
+/* ---- 木屋：山墙屋顶 + 门廊 + 可开的门 + 烟囱 ---- */
+Landmark.cabin = function(g, x, z, rot, M){
+  const grp=new THREE.Group(); grp.position.set(x,0,z); grp.rotation.y=rot||0;
+
+  const body=box(7.2,3.1,5.2,M.plank); body.position.y=1.55; grp.add(body);
+  // 山墙（三角）
+  const gableShape=new THREE.Shape();
+  gableShape.moveTo(-3.6,0); gableShape.lineTo(3.6,0); gableShape.lineTo(0,2.0); gableShape.closePath();
+  const gable1=new THREE.Mesh(new THREE.ShapeGeometry(gableShape), M.plankDark); gable1.position.set(0,3.1,2.6); grp.add(gable1);
+  const gable2=gable1.clone(); gable2.position.z=-2.6; gable2.rotation.y=Math.PI; grp.add(gable2);
+  // 屋顶两坡
+  const r1=box(4.6,0.22,6.2,M.roof); r1.position.set(-1.85,3.95,0); r1.rotation.z=0.58; grp.add(r1);
+  const r2=box(4.6,0.22,6.2,M.roof); r2.position.set(1.85,3.95,0); r2.rotation.z=-0.58; grp.add(r2);
+
+  // 门（铰链在左）
+  const doorPivot=new THREE.Group(); doorPivot.position.set(-0.55,0,2.62);
+  const door=box(1.1,2.15,0.08,M.plankDark); door.position.set(0.55,1.08,0); doorPivot.add(door);
+  const knob=sph(0.05,M.metal,6); knob.position.set(1.0,1.05,0.06); doorPivot.add(knob);
+  grp.add(doorPivot);
+
+  // 窗（发光）
+  const winMat=new THREE.MeshStandardMaterial({ color:'#ffcf8a', emissive:'#ffb45e', emissiveIntensity:1.1, roughness:.5 });
+  [[-2.1,1.85,2.62],[2.1,1.85,2.62],[-2.6,1.85,-2.62],[2.6,1.85,-2.62]].forEach(([wx,wy,wz])=>{
+    const w=box(0.95,0.85,0.06,winMat); w.position.set(wx,wy,wz); grp.add(w);
+    const fr=box(1.05,0.95,0.03,M.plankDark); fr.position.set(wx,wy,wz*0.99); grp.add(fr);
+  });
+
+  // 门廊
+  const porch=box(7.6,0.16,2.4,M.plankDark); porch.position.set(0,0.12,3.9); grp.add(porch);
+  [[-3.4],[3.4]].forEach(([px])=>{
+    const p=cyl(0.09,0.11,2.5,M.plank,6); p.position.set(px,1.3,4.9); grp.add(p);
+  });
+  const pr=box(8.0,0.18,2.8,M.roof); pr.position.set(0,2.62,4.6); pr.rotation.x=0.1; grp.add(pr);
+  // 台阶
+  const step1=box(2.6,0.16,0.6,M.stone); step1.position.set(0,0.08,5.35); grp.add(step1);
+
+  // 门廊灯 + 暖光
+  const porchLamp = sph(0.12,M.warm,8); porchLamp.position.set(2.4,2.35,4.3); grp.add(porchLamp);
+  const porchLight = new THREE.PointLight('#ffb060', 4.2, 13, 1.7); porchLight.position.set(2.2,2.25,4.0); grp.add(porchLight);
+  const porchGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex('#ffd9a0','rgba(255,180,110,0.42)'), transparent:true, depthWrite:false }));
+  porchGlow.position.set(2.4,2.35,4.3); porchGlow.scale.setScalar(2.2); grp.add(porchGlow);
+
+  // 烟囱 + 烟
+  const chim=box(0.75,1.9,0.75,M.stone); chim.position.set(2.3,4.4,-1.4); grp.add(chim);
+  const smokeMat=new THREE.SpriteMaterial({ map:glowTex('rgba(220,230,235,0.65)','rgba(200,215,225,0.22)'), transparent:true, depthWrite:false });
+  const smokes=[0,1,2,3].map(i=>{ const sp=new THREE.Sprite(smokeMat.clone()); sp.position.set(2.3,4.9+i*0.5,-1.4); sp.scale.setScalar(0.7+i*0.25); grp.add(sp); return sp; });
+  // 柴堆
+  for(let i=0;i<5;i++){ const log=cyl(0.11,0.13,1.3,M.bark,6); log.position.set(-3.6,0.14+i*0.12,2.4); log.rotation.z=Math.PI/2; log.rotation.y=0.2; grp.add(log); }
+
+  g.add(grp);
+  return { group:grp, doorPivot, smokes, winMat };
+};
+
+/* ---- 营火 ---- */
+Landmark.campfire = function(g, x, z, M){
+  const grp=new THREE.Group(); grp.position.set(x,0,z);
+  for(let i=0;i<9;i++){
+    const a=i/9*Math.PI*2;
+    const st=sph(0.2+rnd0()*0.08, M.stone, 7);
+    st.position.set(Math.cos(a)*1.15, 0.12, Math.sin(a)*1.15);
+    st.scale.y=0.7; grp.add(st);
+  }
+  for(let i=0;i<4;i++){
+    const log=cyl(0.09,0.11,1.5,M.bark,6);
+    log.position.set(0,0.16,0); log.rotation.z=Math.PI/2-0.3; log.rotation.y=i*Math.PI/4; grp.add(log);
+  }
+  const flameMat=new THREE.MeshStandardMaterial({ color:'#ffb15a', emissive:'#ff8a2a', emissiveIntensity:2.2, transparent:true, opacity:.92 });
+  const flame=cone(0.42,1.15,flameMat,7); flame.position.y=0.72; grp.add(flame);
+  const flame2=cone(0.24,0.75,flameMat,6); flame2.position.y=1.05; grp.add(flame2);
+  const glow=makeGlowSprite(glowTex('#ffb15a','rgba(255,140,60,0.4)'), 0,0,0, 4.2);
+  glow.position.set(x,0.9,z); glow.material.opacity=0.7; g.add(glow);
+  const light=new THREE.PointLight('#ff9a4a', 6.5, 16, 1.6); light.position.set(x,1.2,z); g.add(light);
+  // 坐凳（两根原木）
+  [[-2.1,0.6],[2.0,1.0]].forEach(([dx,dz])=>{
+    const seat=cyl(0.3,0.32,1.7,M.bark,8); seat.position.set(x+dx,0.28,z+dz); seat.rotation.z=Math.PI/2; seat.rotation.y=0.5; g.add(seat);
+  });
+  g.add(grp);
+  return { group:grp, flame, flame2, light, glow };
+};
+
+/* ---- 石拱桥 ---- */
+Landmark.bridge = function(g, x, z, M, span){
+  const grp=new THREE.Group(); grp.position.set(x,0,z);
+  const n=9, sp=(span||6.4)/n;
+  for(let i=0;i<n;i++){
+    const t=i/(n-1);
+    const yy=Math.sin(t*Math.PI)*0.55;
+    const plank=box(sp*0.92,0.12,3.0,M.plank);
+    plank.position.set(-span/2+sp*i+sp/2, yy+0.06, 0);
+    plank.rotation.z=(t-0.5)*-0.5;
+    grp.add(plank);
+  }
+  [-1.35,1.35].forEach(dz=>{
+    for(let i=0;i<3;i++){
+      const t=i/2;
+      const post=box(0.1,0.75,0.1,M.plankDark);
+      post.position.set(-span/2+span*t, Math.sin(t*Math.PI)*0.55+0.45, dz);
+      grp.add(post);
+    }
+    const rail=box(span*0.94,0.08,0.08,M.plankDark); rail.position.set(0,1.0,dz); grp.add(rail);
+  });
+  g.add(grp);
+  return { group:grp };
+};
+
+/* ---- 溪流 ---- */
+Landmark.stream = function(g, z, M){
+  const tex=makeCanvas(256,128,(c,w,h)=>{
+    c.fillStyle='#20424c'; c.fillRect(0,0,w,h);
+    for(let i=0;i<26;i++){ c.strokeStyle='rgba(160,220,235,'+(0.05+Math.random()*0.14)+')'; c.lineWidth=1+Math.random()*2; c.beginPath(); const y=Math.random()*h; c.moveTo(0,y); c.bezierCurveTo(w*0.3,y+8,w*0.6,y-8,w,y); c.stroke(); }
+  });
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(6,1);
+  const water=new THREE.Mesh(new THREE.PlaneGeometry(64,4.6), new THREE.MeshStandardMaterial({ map:tex, color:'#9fd6e2', emissive:'#1e4a56', emissiveIntensity:.55, roughness:.22, metalness:.3, transparent:true, opacity:.92 }));
+  water.rotation.x=-Math.PI/2; water.position.set(0,0.04,z); g.add(water);
+  // 河岸
+  [-2.9,2.9].forEach(dz=>{
+    const bank=box(64,0.22,0.9,M.stone); bank.position.set(0,0.06,z+dz); g.add(bank);
+  });
+  // 石头
+  for(let i=0;i<12;i++){ const st=sph(0.16+Math.random()*0.2,M.stone,6); st.position.set(-30+Math.random()*60, 0.08, z+(Math.random()-0.5)*4.2); st.scale.y=0.6; g.add(st); }
+  return { water, tex };
+};
+
+/* ---- 校园凉亭 ---- */
+Landmark.pavilion = function(g, x, z, M){
+  const grp=new THREE.Group(); grp.position.set(x,0,z);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(3.4,3.6,0.3,6), M.stone); base.position.y=0.15; grp.add(base);
+  for(let i=0;i<6;i++){
+    const a=i/6*Math.PI*2;
+    const p=cyl(0.12,0.14,3.0,M.plank,6);
+    p.position.set(Math.cos(a)*2.7,1.65,Math.sin(a)*2.7); grp.add(p);
+  }
+  const roof=cone(3.9,1.7,M.roof,6); roof.position.y=4.2; grp.add(roof);
+  const ring=cyl(3.1,3.1,0.16,M.plankDark,6); ring.position.y=3.15; grp.add(ring);
+  const lantern=sph(0.16,M.warm,8); lantern.position.y=2.95; grp.add(lantern);
+  g.add(grp);
+  const gl=makeGlowSprite(glowTex('#ffd9a0','rgba(255,190,120,0.4)'), x,2.95,z, 2.4); gl.material.opacity=.6; g.add(gl);
+  const pt=new THREE.PointLight('#ffce90', 3.2, 12, 1.6); pt.position.set(x,2.9,z); g.add(pt);
+  return { group:grp };
+};
+
+/* ---- 湖畔水榭 + 栈桥 ---- */
+Landmark.boathouse = function(g, x, z, M){
+  const grp=new THREE.Group(); grp.position.set(x,0,z);
+  // 平台（架在水上）
+  const deck=box(6.4,0.2,5.0,M.plankDark); deck.position.y=0.32; grp.add(deck);
+  [[-2.8,-2.2],[2.8,-2.2],[-2.8,2.2],[2.8,2.2]].forEach(([dx,dz])=>{
+    const pile=cyl(0.14,0.16,1.6,M.bark,6); pile.position.set(dx,-0.45,dz); grp.add(pile);
+  });
+  // 屋体
+  const body=box(5.0,2.4,4.0,M.plank); body.position.set(0,1.62,-0.2); grp.add(body);
+  const r1=box(3.2,0.18,4.4,M.roof); r1.position.set(-1.3,3.15,0); r1.rotation.z=0.5; grp.add(r1);
+  const r2=box(3.2,0.18,4.4,M.roof); r2.position.set(1.3,3.15,0); r2.rotation.z=-0.5; grp.add(r2);
+  const winMat=new THREE.MeshStandardMaterial({ color:'#ffd9a0', emissive:'#ffb45e', emissiveIntensity:1.0, roughness:.5 });
+  [[-1.2,2.0,1.82],[1.2,2.0,1.82]].forEach(([wx,wy,wz])=>{ const w=box(0.8,0.7,0.05,winMat); w.position.set(wx,wy,wz); grp.add(w); });
+  const door=box(0.95,1.8,0.06,M.plankDark); door.position.set(0,1.2,1.83); grp.add(door);
+  // 栈桥伸向湖心
+  for(let i=0;i<8;i++){
+    const p=box(1.5,0.14,0.42,M.plank); p.position.set(0,0.3,-2.6-i*0.42); grp.add(p);
+  }
+  [-0.7,0.7].forEach(dx=>{ const post=cyl(0.06,0.07,0.9,M.plankDark,5); post.position.set(dx,0.85,-2.8); grp.add(post); });
+  const rail=box(0.08,0.08,3.4,M.plankDark); rail.position.set(-0.7,1.24,-4.2); grp.add(rail);
+  const rail2=rail.clone(); rail2.position.x=0.7; grp.add(rail2);
+  g.add(grp);
+  const gl=makeGlowSprite(glowTex('#ffd9a0','rgba(255,190,120,0.35)'), x,2.2,z, 3.2); gl.material.opacity=.5; g.add(gl);
+  const pt=new THREE.PointLight('#ffce90', 3.0, 13, 1.7); pt.position.set(x,2.4,z); g.add(pt);
+  return { group:grp };
+};
+
+/* ---- 林间小屋（银杏大道旁的小树屋） ---- */
+Landmark.treehut = function(g, x, z, M){
+  const grp=new THREE.Group(); grp.position.set(x,0,z);
+  const trunk=cyl(0.55,0.85,7.4,M.bark,8); trunk.position.y=3.7; grp.add(trunk);
+  const plat=box(3.6,0.18,3.6,M.plankDark); plat.position.y=3.6; grp.add(plat);
+  [[-1.5,-1.5],[1.5,-1.5],[-1.5,1.5],[1.5,1.5]].forEach(([dx,dz])=>{
+    const p=cyl(0.07,0.08,1.8,M.plank,5); p.position.set(dx,4.6,dz); grp.add(p);
+  });
+  const roof=cone(2.9,1.2,M.roof,4); roof.position.y=5.9; roof.rotation.y=Math.PI/4; grp.add(roof);
+  const rail=box(3.6,0.07,0.07,M.plank); rail.position.set(0,4.05,1.76); grp.add(rail);
+  const rail2=rail.clone(); rail2.position.z=-1.76; grp.add(rail2);
+  // 梯子
+  for(let i=0;i<6;i++){ const r=box(0.5,0.05,0.06,M.plank); r.position.set(1.9,0.5+i*0.55,0.6); grp.add(r); }
+  grp.scale.setScalar(0.86);
+  g.add(grp);
+  return { group:grp };
+};
+
+
+/* ---------- 场景六：林间 · 树屋（大地图） ---------- */
+SceneBuilders.forest = function(){
+  const g=new THREE.Group();
+  const rnd=mulberry32(7788);
+  const bg=new THREE.Color('#0b1a1d');
+  const fog=new THREE.Fog('#0b1a1d', 30, 135);
+  g.add(makeSkySphere('#06121a','#2b4a48'));
+  const M=lmMats();
+
+  // 地面（林地）
+  const floorTex=makeCanvas(256,256,(c,w,h)=>{
+    c.fillStyle='#1e2f26'; c.fillRect(0,0,w,h);
+    for(let i=0;i<900;i++){ const s=1+Math.random()*5; c.fillStyle='rgba('+(30+Math.random()*40|0)+','+(48+Math.random()*46|0)+','+(34+Math.random()*30|0)+',0.55)'; c.fillRect(Math.random()*w, Math.random()*h, s, s); }
+  });
+  floorTex.wrapS=floorTex.wrapT=THREE.RepeatWrapping; floorTex.repeat.set(14,14);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(240,240), new THREE.MeshStandardMaterial({ map:floorTex, roughness:1 }));
+  ground.rotation.x=-Math.PI/2; g.add(ground);
+
+  // 中央小径
+  const pathTex=makeCanvas(128,256,(c,w,h)=>{
+    c.fillStyle='#5e4f36'; c.fillRect(0,0,w,h);
+    for(let i=0;i<260;i++){ c.fillStyle='rgba('+(120+Math.random()*40|0)+','+(105+Math.random()*36|0)+','+(74+Math.random()*30|0)+',0.35)'; c.fillRect(Math.random()*w,Math.random()*h,2+Math.random()*4,2+Math.random()*4); }
+  });
+  pathTex.wrapS=pathTex.wrapT=THREE.RepeatWrapping; pathTex.repeat.set(1,10);
+  const path=new THREE.Mesh(new THREE.PlaneGeometry(4.6,64), new THREE.MeshStandardMaterial({ map:pathTex, roughness:.96 }));
+  path.rotation.x=-Math.PI/2; path.position.set(0,0.02,-4); g.add(path);
+
+  // 溪流 + 石桥
+  const stream=Landmark.stream(g, 9, M);
+  Landmark.bridge(g, 0, 9, M, 7.2);
+
+  // 森林（环形，留出空地）
+  const treeMats=[new THREE.MeshStandardMaterial({color:'#24402f',roughness:.95}),
+                  new THREE.MeshStandardMaterial({color:'#2c4a34',roughness:.95}),
+                  new THREE.MeshStandardMaterial({color:'#1e3a2a',roughness:.95})];
+  const trunkMat=new THREE.MeshStandardMaterial({ color:'#3f2e20', roughness:.95 });
+  function tree(x,z,s,mat){
+    const t=cyl(0.18*s,0.3*s,3.0*s,trunkMat,6); t.position.set(x,1.5*s,z); g.add(t);
+    const n=2+Math.floor(rnd()*3);
+    for(let i=0;i<n;i++){
+      const c=cone((1.2+rnd()*0.9)*s,(2.0+rnd()*1.4)*s,mat,7);
+      c.position.set(x+(rnd()-0.5)*1.4*s, (2.8+i*0.85+rnd()*0.4)*s, z+(rnd()-0.5)*1.4*s);
+      g.add(c);
+    }
+  }
+  for(let i=0;i<150;i++){
+    const a=rnd()*Math.PI*2, r=20+rnd()*62;
+    const x=Math.cos(a)*r, z=Math.sin(a)*r;
+    if(Math.abs(x)<5 && z>-24 && z<26) continue;
+    if(Math.hypot(x-13,z+10)<9 || Math.hypot(x+13,z+11)<9) continue;
+    tree(x, z, 0.85+rnd()*0.75, treeMats[Math.floor(rnd()*3)]);
+  }
+  // 近景框景树
+  tree(-9, 12, 1.2, treeMats[1]); tree(10, 15, 1.1, treeMats[0]); tree(8, -16, 1.3, treeMats[1]);
+
+  // 树屋
+  const th=Landmark.treehouse(g, -11.5, -12.5, M, 1.12);
+  // 木屋
+  const cb=Landmark.cabin(g, 12.6, -9.5, -0.5, M);
+  // 营火
+  const cf=Landmark.campfire(g, 3.4, 1.2, M);
+
+  // 萤火虫
+  const fCount=150, fp=new Float32Array(fCount*3), fph=new Float32Array(fCount);
+  for(let i=0;i<fCount;i++){ const a=rnd()*Math.PI*2, r=4+rnd()*22; fp[i*3]=Math.cos(a)*r; fp[i*3+1]=0.6+rnd()*4.5; fp[i*3+2]=Math.sin(a)*r-6; fph[i]=rnd()*Math.PI*2; }
+  const fGeo=new THREE.BufferGeometry(); fGeo.setAttribute('position',new THREE.BufferAttribute(fp,3));
+  const flies=new THREE.Points(fGeo, new THREE.PointsMaterial({ color:'#d8ff9a', size:0.1, transparent:true, opacity:.9, blending:THREE.AdditiveBlending, depthWrite:false }));
+  g.add(flies); const fliesBase=new Float32Array(fp.slice());
+
+  // 星空
+  const starCount=900, sp=new Float32Array(starCount*3);
+  for(let i=0;i<starCount;i++){ const th2=rnd()*Math.PI*2, ph=Math.acos(rnd()*0.96), r=140; sp[i*3]=r*Math.sin(ph)*Math.cos(th2); sp[i*3+1]=r*Math.cos(ph); sp[i*3+2]=r*Math.sin(ph)*Math.sin(th2); }
+  const sGeo=new THREE.BufferGeometry(); sGeo.setAttribute('position',new THREE.BufferAttribute(sp,3));
+  g.add(new THREE.Points(sGeo, new THREE.PointsMaterial({ color:'#cfe2ff', size:0.9, transparent:true, opacity:.75, depthWrite:false })));
+
+  // 光照
+  const amb=new THREE.HemisphereLight('#4a7280','#1a2a20',1.5); g.add(amb);
+  const moon=new THREE.DirectionalLight('#9fc0e8',1.05); moon.position.set(-24,32,-26); g.add(moon);
+  const fill=new THREE.DirectionalLight('#7fa0c0',0.62); fill.position.set(6,10,18); g.add(fill);
+  // 木屋暖光
+  const cabinLight=new THREE.PointLight('#ffb877', 5.5, 18, 1.6); cabinLight.position.set(12.6,2.2,-6.6); g.add(cabinLight);
+  // 树屋廊灯
+  const thLight=new THREE.PointLight('#ffcf8a', 4.2, 16, 1.7); thLight.position.set(-11.5,7.4,-9.6); g.add(thLight);
+  g.add(makeGlowSprite(glowTex('#ffd9a0','rgba(255,180,110,0.3)'), -11.5,7.2,-9.4, 5.4));
+
+  // 视角切换
+  const VIEWS={
+    ground:{ p:[0,4.8,20], t:[-2,3.4,-11] },
+    tree:  { p:[-11.5,8.2,-9.6], t:[4,2.6,-15] },
+    porch: { p:[7.4,2.1,1.6], t:[12.4,2.2,-8.0] }
+  };
+  let doorOpen=false;
+
+  registerHotspot(g, -11.5, 8.4, -12.5, { id:'forest.treehouse', r:2.8, scale:3.2, tint:0xffd9a0, title:'树屋',
+    text:'顺着梯子上去，整片林子在脚下展开。这里没有别人，只有你和风。',
+    act:()=>{ flyTo(VIEWS.tree.p, VIEWS.tree.t, 1.9); SFX.thud(); } });
+  registerHotspot(g, -11.2, 3.2, -10.4, { id:'forest.ladder', r:1.1, scale:1.5, tint:0xffe2b0, title:'绳梯', op:.4,
+    text:'一级一级往上，手里有东西可以握，心就稳了。' });
+  registerHotspot(g, 12.6, 1.7, -6.4, { id:'forest.cabin', r:1.9, scale:2.2, tint:0xffc890, title:'木屋',
+    text:'门没有锁。屋里留着一盏灯和一张空椅子——像有人知道你今晚会来。',
+    act:()=>{ doorOpen=!doorOpen; cb.doorPivot.rotation.y = doorOpen ? -1.15 : 0; flyTo(VIEWS.porch.p, VIEWS.porch.t, 1.9); SFX.thud(); } });
+  registerHotspot(g, 3.4, 1.3, 1.2, { id:'forest.fire', r:1.2, scale:1.15, tint:0xff9a4a, title:'营火',
+    text:'火苗轻轻跳。人只要盯着火看一会儿，脑子里的噪音就会小下去。',
+    act:()=>{ g.userData.fireT=sceneTime; SFX.water(); } });
+  registerHotspot(g, 0, 1.0, 9, { id:'forest.bridge', r:1.6, scale:1.9, tint:0xa8c8d8, op:.4, title:'石桥',
+    text:'桥下的水一直在走。你站着不动，它替你把时间带走一点。' });
+  registerHotspot(g, -5.5, 0.4, 9, { id:'forest.stream', r:1.3, scale:1.5, tint:0x8fd8e8, op:.15, faint:true, title:'溪水',
+    text:'水很浅，能看见底下的石头。有些事看清了，也就不那么可怕了。' });
+  registerHotspot(g, 0, 1.5, 18, { id:'forest.ground', r:1.6, scale:1.7, tint:0xcfe0ff, op:.15, faint:true, title:'回到空地',
+    text:'退一步，整片林子又回到眼里。', act:()=>{ flyTo(VIEWS.ground.p, VIEWS.ground.t, 1.8); } });
+
+  g.userData.fireT=-999; g.userData.ripple=[];
+  g.userData.update=(dt,t)=>{
+    // 烟
+    cb.smokes.forEach((sm,i)=>{ const k=(t*0.25+i*0.25)%1; sm.position.y=4.9+k*2.6; sm.position.x=2.3+Math.sin(t*0.6+i)*0.25; sm.material.opacity=0.42*(1-k)*(0.7+0.3*Math.sin(t+i)); sm.scale.setScalar(0.6+k*1.1); });
+    // 火苗
+    const fb=(t-g.userData.fireT)<2.6 ? Math.sin(Math.min(1,(t-g.userData.fireT)/2.6)*Math.PI) : 0;
+    cf.flame.scale.set(1+Math.sin(t*7)*0.09+fb*0.5, 1+Math.sin(t*9)*0.14+fb*0.7, 1+Math.cos(t*8)*0.09+fb*0.5);
+    cf.flame2.rotation.y=t*1.6; cf.flame2.scale.setScalar(0.9+Math.sin(t*11)*0.1+fb*0.4);
+    cf.light.intensity=6.0+Math.sin(t*13)*0.7+fb*4.5;
+    cf.glow.material.opacity=0.62+Math.sin(t*6)*0.08+fb*0.3;
+    // 溪水流动
+    stream.tex.offset.x=(t*0.06)%1;
+    // 萤火
+    const p=flies.geometry.attributes.position.array;
+    for(let i=0;i<fCount;i++){ p[i*3]=fliesBase[i*3]+Math.sin(t*0.5+fph[i])*0.9; p[i*3+1]=fliesBase[i*3+1]+Math.sin(t*0.7+fph[i]*1.7)*0.5; p[i*3+2]=fliesBase[i*3+2]+Math.cos(t*0.4+fph[i])*0.9; }
+    flies.geometry.attributes.position.needsUpdate=true;
+    // 灯笼轻摆
+    th.lamps.forEach((l,i)=>{ l.rotation.z=Math.sin(t*1.3+i)*0.06; });
+  };
+
+  return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,4.8,20], lookAt:[-2,3.4,-11] };
+};
+
 
 /* ---------- 场景一：图书馆窗边 ---------- */
 SceneBuilders.library = function(){
@@ -3771,6 +4210,7 @@ Props.campus = function(g, rnd){
     cat.position.y=0.18+Math.sin(t*1.1)*0.006;
   });
 
+  Landmark.pavilion(g, -8.6, -6.6, lmMats());
   mountExtra('campus', g, ticks);
   g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
 };
@@ -3865,6 +4305,11 @@ Props.lake = function(g, rnd){
     bird.rotation.z=Math.sin(p*Math.PI)*0.25;
   });
 
+  const bm=lmMats();
+  bm.plank.emissive.copy(bm.plank.color).multiplyScalar(0.34);
+  bm.roof.emissive.copy(bm.roof.color).multiplyScalar(0.4);
+  bm.bark.emissive.copy(bm.bark.color).multiplyScalar(0.32);
+  Landmark.boathouse(g, 12.8, -8.6, bm);
   mountExtra('lake', g, ticks);
   g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
 };
@@ -3955,6 +4400,12 @@ Props.ginkgo = function(g, rnd){
     sign.rotation.z=Math.sin(q*8)*0.06*Math.exp(-q*2);
   });
 
+  const gm=lmMats();
+  gm.plank.color.set('#c9a06a'); gm.plank.emissive.copy(gm.plank.color).multiplyScalar(0.3);
+  gm.plankDark.color.set('#a87f52'); gm.plankDark.emissive.copy(gm.plankDark.color).multiplyScalar(0.3);
+  gm.roof.color.set('#b5613f'); gm.roof.emissive.copy(gm.roof.color).multiplyScalar(0.32);
+  gm.bark.color.set('#7a5a3e'); gm.bark.emissive.copy(gm.bark.color).multiplyScalar(0.3);
+  Landmark.treehut(g, -5.8, 3.2, gm);
   mountExtra('ginkgo', g, ticks);
   g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
 };
@@ -4351,6 +4802,7 @@ const SCENES = [
   { id:'campus', name:'星空校园', desc:'深夜校园 · 星轨灯影', colors:['#050a1e','#3a4a8c'], icon:['M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'] },
   { id:'lake', name:'湖畔步道', desc:'湖畔月色 · 涟漪流萤', colors:['#06141f','#2a6f8f'], icon:['M3 12c3-3 6-3 9 0s6 3 9 0','M3 17c3-2 6-2 9 1s6 3 9-1'] },
   { id:'ginkgo', name:'银杏大道', desc:'秋日暖阳 · 金叶纷飞', colors:['#5b2f12','#f7c873'], icon:['M12 3c-5 6-5 12 0 18 5-6 5-12 0-18z','M12 3v18'] },
+  { id:'forest', name:'林间 · 树屋', desc:'深夜林地 · 树屋与木屋', colors:['#0b1a1d','#2c5a4a'], icon:['M12 3l8 6v12H4V9z','M9 21v-6h6v6'] },
   { id:'hall', name:'音乐厅 · 钢琴', desc:'舞台演奏 · 数字钢琴', colors:['#1a0f10','#b07a3a'], icon:['M4 8h10M4 12h10','M8 4h3v3'] },
 ];
 let activeScene=null, sceneTime=0;
@@ -4363,6 +4815,7 @@ const HEAL = {
   lake:   { title:'月映湖心 · 涟漪归静', desc:'看月光在湖面一层层铺开，涟漪荡去，心也随之安静下来。', cue:'想象湖畔的微风与水汽', color:'#6fd3c0' },
   ginkgo: { title:'暖阳金叶 · 放下与重启', desc:'金色的叶缓缓飘落，像把烦恼一片片放下。阳光正暖，你值得被这样温柔对待。', cue:'想象暖阳晒在肩头', color:'#f7c873' },
   hall:   { title:'舞台之上 · 专注当下', desc:'把注意力交给琴键与呼吸，指尖之下，时间也慢了下来。', cue:'想象舞台上的专注与安静', color:'#b07a3a' },
+  forest: { title:'林间有灯 · 你可以上来', desc:'树屋上有一盏灯，木屋里也有一盏。这片林子今晚只属于你，慢慢走，不着急。', cue:'想象松针与湿润泥土的气味', color:'#7fd8b0' },
 };
 
 const MOODS = [
@@ -5046,6 +5499,14 @@ function loop(now){
     const hx=camera.position.x,hz=camera.position.z; const rr=Math.hypot(hx,hz);
     if(rr>40){ camera.position.x*=40/rr; camera.position.z*=40/rr; }
     camera.position.y=1.6+Math.sin(t*1.7)*0.02;
+  }
+  if(camFly){
+    camFly.t += dt;
+    const k = Math.min(1, camFly.t / camFly.dur);
+    const e = k<0.5 ? 4*k*k*k : 1 - Math.pow(-2*k+2, 3)/2;
+    camera.position.lerpVectors(camFly.p0, camFly.p1, e);
+    controls.target.lerpVectors(camFly.t0, camFly.t1, e);
+    if(k>=1){ camFly=null; controls.enabled=true; }
   }
   controls.update();
   updateBreath(dt);
