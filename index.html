@@ -2225,7 +2225,7 @@ function updateHotspots(t){
     const near = Math.min(1, Math.max(0.06, (dist - 1.2) / 6));
     /* 可走近的物件：走近后光点再收一档，别用大圆挡住物件本身 */
     const shrink = h.go ? 0.7 : 1;
-    h.marker.scale.setScalar(h.marker.userData.base * pulse * (0.42 + 0.58*near) * shrink * (hovered ? (h.faint ? 1.7 : 1.25) : 1));
+    h.marker.scale.setScalar(h.marker.userData.base * pulse * (0.34 + 0.52*near) * shrink * (hovered ? (h.faint ? 1.7 : 1.25) : 1));
     h.marker.material.opacity = (hovered ? Math.min(1, baseOp + 0.55) : Math.max(0.05, baseOp + amp*Math.sin(t*2 + h.ph))) * near * shrink;
   }
 }
