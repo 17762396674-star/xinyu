@@ -567,10 +567,10 @@
 
   <div id="brand">
     <div class="t">心屿 <b>·</b> 见心安</div>
-    <div class="s">校园 VR 音乐疗愈系统 · V1.1</div>
+    <div class="s">校园 VR 音乐疗愈系统 · V1.2</div>
   </div>
 
-  <div id="status" class="panel">场景 <b id="st-scene">—</b> · 音乐 <b id="st-music">未播放</b></div>
+  <div id="status" class="panel">场景 <b id="st-scene">—</b> · 音乐 <b id="st-music">未播放</b> · 发现 <b id="st-found">0</b></div>
 
   <div id="hint">W A S D 移动 · 鼠标环视 · Esc 退出沉浸</div>
   <div id="scene-hint"></div>
@@ -2154,29 +2154,60 @@ function interactTex(){
   });
 }
 
+/* ---- 探索发现：记录已找到的物件，集齐场景获得心屿印记 ---- */
+const DISCOVER = {
+  key:'xinyu_found_v1', found:new Set(), ids:{}, marks:{},
+  load(){ try{ const o=JSON.parse(localStorage.getItem(this.key)||'{}'); (o.found||[]).forEach(x=>this.found.add(x)); this.marks=o.marks||{}; }catch(e){} },
+  save(){ try{ localStorage.setItem(this.key, JSON.stringify({ found:Array.from(this.found), marks:this.marks })); }catch(e){} },
+  add(id){ if(!id || this.found.has(id)) return false; this.found.add(id); this.save(); return true; },
+  sceneTotal(sid){ return (this.ids[sid]||[]).length; },
+  sceneFound(sid){ return (this.ids[sid]||[]).filter(x=>this.found.has(x)).length; },
+  sceneDone(sid){ const t=this.sceneTotal(sid); return t>0 && this.sceneFound(sid)===t; },
+  markCount(){ return Object.keys(this.marks).filter(k=>this.marks[k]).length; },
+  allDone(){ const k=Object.keys(this.ids); return k.length>=5 && k.every(x=>this.sceneDone(x)); }
+};
+DISCOVER.load();
+const REWARD = { unlocked:false };
+try{ REWARD.unlocked = localStorage.getItem('xinyu_reward_v1')==='1'; }catch(e){}
+
+let BUILDING_SCENE = null;
+
 function registerHotspot(g, x, y, z, o){
   const r = o.r || 0.8;
   const hit = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false }));
   hit.position.set(x, y, z);
   g.add(hit);
-  const base = o.scale || 1.0;
-  const marker = makeGlowSprite(interactTex(), x, y, z, base, o.tint || 0xffffff);
-  marker.userData.base = base;
-  marker.renderOrder = 5;
-  marker.material.depthTest = false;
-  g.add(marker);
-  const h = { hit, marker, title:o.title, text:o.text, act:o.act, ph:Math.random()*10 };
+  const base = (o.scale || 1.0) * (o.faint ? 0.58 : 1);
+  let marker = null;
+  if(o.glow !== false){
+    marker = makeGlowSprite(interactTex(), x, y, z, base, o.tint || 0xffffff);
+    marker.userData.base = base;
+    marker.renderOrder = 5;
+    marker.material.depthTest = false;
+    marker.material.opacity = o.faint ? 0.16 : 0.85;
+    g.add(marker);
+  }
+  const h = { hit, marker, title:o.title, text:o.text, act:o.act, ph:Math.random()*10, id:o.id||null, faint:!!o.faint, scene:BUILDING_SCENE };
   hotspots.push(h);
+  if(h.id && h.scene){
+    const arr = DISCOVER.ids[h.scene] || (DISCOVER.ids[h.scene] = []);
+    if(arr.indexOf(h.id) < 0) arr.push(h.id);
+  }
   return h;
 }
 
 function updateHotspots(t){
   for(const h of hotspots){
-    if(!h.marker.parent) continue;
+    if(!h.marker || !h.marker.parent) continue;
     const hovered = (h === hoveredHotspot);
-    const p = 1 + Math.sin(t*2 + h.ph)*0.3;
-    h.marker.scale.setScalar(h.marker.userData.base * p * (hovered ? 1.3 : 1));
-    h.marker.material.opacity = hovered ? 1 : (0.68 + 0.3*Math.sin(t*2 + h.ph));
+    if(h.faint){
+      h.marker.scale.setScalar(h.marker.userData.base * (hovered ? 1.6 : 1) * (1 + Math.sin(t*1.6 + h.ph)*0.12));
+      h.marker.material.opacity = hovered ? 0.95 : (0.14 + 0.06*Math.sin(t*1.6 + h.ph));
+    }else{
+      const p = 1 + Math.sin(t*2 + h.ph)*0.3;
+      h.marker.scale.setScalar(h.marker.userData.base * p * (hovered ? 1.3 : 1));
+      h.marker.material.opacity = hovered ? 1 : (0.68 + 0.3*Math.sin(t*2 + h.ph));
+    }
   }
 }
 
@@ -2196,10 +2227,47 @@ function pickHotspot(cx, cy){
   if(h) triggerHotspot(h);
 }
 
+function updateFoundUI(){
+  const el = $('#st-found'); if(!el) return;
+  const t = DISCOVER.sceneTotal(curSceneId), f = DISCOVER.sceneFound(curSceneId);
+  el.textContent = t ? (f + '/' + t) : '0';
+  el.title = '已集 ' + DISCOVER.markCount() + ' / 5 枚心屿印记';
+}
+
+function sceneComplete(sid){
+  if(DISCOVER.marks[sid]) return;
+  DISCOVER.marks[sid] = true; DISCOVER.save();
+  SFX.reward();
+  const s = SCENES.find(x=>x.id===sid);
+  const n = DISCOVER.markCount();
+  showHealText('✦ 一枚心屿印记',
+    '你把「' + (s?s.name:'') + '」角落里的 ' + DISCOVER.sceneTotal(sid) + ' 处细节都看过了。已集 ' + n + ' / 5 枚印记。' +
+    (n>=5 ? '' : '还有别的场景在等你。'), 11000);
+  updateFoundUI();
+  if(n>=5) unlockReward();
+}
+
+function unlockReward(){
+  if(REWARD.unlocked) return;
+  REWARD.unlocked = true;
+  try{ localStorage.setItem('xinyu_reward_v1','1'); }catch(e){}
+  buildMusicList();
+  setTimeout(()=>showHealText('解锁 · 心屿回声',
+    '你走遍了五处角落，也记住了它们。这首《心屿 · 回声》只为认真看过的人响起——去音乐列表里找它。', 12000), 5200);
+}
+
 function triggerHotspot(h){
   haptic(15, hotDownX, hotDownY);
   flashPulse();
   if(h.text) showHealText(h.title || '', h.text, 7000);
+  if(h.id && DISCOVER.add(h.id)){
+    SFX.discover();
+    const sid = h.scene || curSceneId;
+    updateFoundUI();
+    if(DISCOVER.sceneTotal(sid) > 0 && DISCOVER.sceneFound(sid) === DISCOVER.sceneTotal(sid)){
+      setTimeout(()=>sceneComplete(sid), 1200);
+    }
+  }
   if(h.act) h.act();
 }
 
@@ -2539,6 +2607,18 @@ const TRACKS = [
       n.connect(lp).connect(master); n.start();
       return { start(){}, stop(){ lfo.stop(); try{n.stop();}catch(e){} master.gain.linearRampToValueAtTime(0,ctx.currentTime+1.5); setTimeout(()=>{try{master.disconnect();}catch(e){}},1600); } };
   }},
+  { id:'echo', name:'心屿回声', tag:'隐藏 · 印记解锁', hidden:true, build(ctx,out){
+      const master=ctx.createGain(); master.gain.value=0; master.connect(out);
+      master.gain.linearRampToValueAtTime(0.82, ctx.currentTime+6);
+      const voices=[padVoice(ctx,master,98,0.10,-3),padVoice(ctx,master,146.83,0.08,4),padVoice(ctx,master,196,0.06,-5)];
+      const lfo=ctx.createOscillator(); lfo.frequency.value=0.05; const lfoG=ctx.createGain(); lfoG.gain.value=0.035; lfo.connect(lfoG).connect(master.gain); lfo.start();
+      const penta=[392,440,493.88,587.33,659.25,783.99];
+      const sch=new Scheduler(ctx,1.6,(step,t)=>{
+        if(step%2===0) pianoNote(ctx,master,penta[(step*3)%penta.length],t,3.6,0.07);
+        if(step%5===0) bellNote(ctx,master,penta[(step*5+2)%penta.length]*2,t+0.4,3.2,0.035);
+      });
+      return { start(){ sch.start(); }, stop(){ sch.stop(); lfo.stop(); voices.forEach(v=>v.stop()); master.gain.linearRampToValueAtTime(0,ctx.currentTime+2.2); setTimeout(()=>{try{master.disconnect();}catch(e){}},2400); } };
+  }},
 ];
 
 let currentTrack=null, currentTrackId=null, playing=false;
@@ -2564,6 +2644,53 @@ const SfxSys = {
     this.pending.forEach(n=>{ const def=AMBIENT[n]; if(!def) return; let out; if(def.spatial) out=this.makePanner(def.pos); else out=this.makePanner([0,0,0]); out.connect(AudioSys.sfxBus); const inst=def.build(AudioSys.ctx,out); inst.start(); this.active.push(inst); });
   },
   stopAll(){ this.active.forEach(i=>{ try{i.stop();}catch(e){} }); this.active=[]; }
+};
+
+/* ---- 交互音效（程序化合成，短促轻量，复用 sfxBus） ---- */
+const SFX = {
+  ok(){ return !!(AudioSys.ctx && AudioSys.sfxBus && AudioSys.ctx.state==='running'); },
+  blip(freq, dur, vol, type, slide){
+    if(!this.ok()) return;
+    const ctx=AudioSys.ctx, t=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type||'sine'; o.frequency.setValueAtTime(freq,t);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(50,freq*slide), t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(vol||0.08, t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g).connect(AudioSys.sfxBus); o.start(t); o.stop(t+dur+0.03);
+  },
+  noise(dur, freq, q, vol, type){
+    if(!this.ok()) return;
+    const ctx=AudioSys.ctx, t=ctx.currentTime;
+    const n=noiseSrc(ctx,'pink'); const f=ctx.createBiquadFilter();
+    f.type=type||'bandpass'; f.frequency.value=freq||1200; f.Q.value=q||1;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(vol||0.08, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    n.connect(f).connect(g).connect(AudioSys.sfxBus); n.start(t); n.stop(t+dur+0.05);
+  },
+  page(){ this.noise(0.22, 2600, 0.8, 0.06, 'highpass'); },
+  cup(){ this.blip(1180, 0.09, 0.045); setTimeout(()=>this.blip(1620, 0.08, 0.03), 70); },
+  tick(){ this.blip(2100, 0.03, 0.04, 'square'); },
+  thud(){ this.blip(150, 0.18, 0.07, 'sine', 0.62); },
+  water(){ this.noise(0.5, 720, 0.7, 0.08); },
+  rustle(){ this.noise(0.4, 2800, 0.9, 0.06, 'highpass'); },
+  bell(){ this.blip(1568, 0.5, 0.05); setTimeout(()=>this.blip(2093, 0.45, 0.035), 110); },
+  chime(){ [1318.5, 1568, 2093].forEach((f,i)=>setTimeout(()=>this.blip(f, 0.8, 0.04), i*95)); },
+  meow(){
+    if(!this.ok()) return;
+    const ctx=AudioSys.ctx, t=ctx.currentTime;
+    const o=ctx.createOscillator(), g=ctx.createGain(), lfo=ctx.createOscillator(), lg=ctx.createGain();
+    o.type='sawtooth'; o.frequency.setValueAtTime(720,t); o.frequency.exponentialRampToValueAtTime(430, t+0.42);
+    lfo.frequency.value=22; lg.gain.value=26; lfo.connect(lg).connect(o.frequency);
+    const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=900; f.Q.value=3;
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.05,t+0.05); g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+    o.connect(f).connect(g).connect(AudioSys.sfxBus);
+    o.start(t); lfo.start(t); o.stop(t+0.55); lfo.stop(t+0.55);
+  },
+  discover(){ [1046.5, 1568].forEach((f,i)=>setTimeout(()=>this.blip(f, 0.6, 0.035), i*80)); },
+  reward(){ [523.25, 659.25, 783.99, 1046.5].forEach((f,i)=>setTimeout(()=>this.blip(f, 1.5, 0.05), i*130)); }
 };
 
 function updateListener(){
@@ -2720,6 +2847,7 @@ SceneBuilders.library = function(){
     openBook.rotation.y = bt < 1.4 ? 0.3 + Math.sin(bt*Math.PI*4)*(1-bt/1.4)*0.6 : 0.3;
   };
 
+  Props.library(g, rnd);
   return { group:g, ambient:['rain'], fog, background:bg, cameraPos:[0,1.6,3.4], lookAt:[0,1.5,-3] };
 };
 
@@ -2846,6 +2974,7 @@ SceneBuilders.campus = function(){
     const sb=g.userData.streetBoost, gi=sb.i, glow=g.userData.streetGlows[gi], head=g.userData.streetHeads[gi];
     if(glow && head){ const q=(t - sb.t0); const boost=q<2.2 ? Math.sin(Math.min(1,q/2.2)*Math.PI) : 0; glow.scale.setScalar(2.6*(1+0.7*boost)); head.material.color.setHSL(0.11, 0.9, 0.66+0.26*boost); }
   };
+  Props.campus(g, rnd);
   return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.4,-4] };
 };
 
@@ -2936,6 +3065,7 @@ SceneBuilders.lake = function(){
   const crownMat=new THREE.MeshStandardMaterial({ color:'#17402f', roughness:.9, emissive:'#0b1c26', emissiveIntensity:.45 });
   for(let i=0;i<16;i++){
     const side=i%2?1:-1; const x=3+side*(2.6+rnd()*4.4), z=-6+i*1.6;
+    if(Math.hypot(x, z-9) < 5.6) continue;
     const hh=2.2+rnd()*1.0;
     const t=cyl(0.16,0.26,hh,tMat); t.position.set(x,hh/2,z); g.add(t);
     const ch=3.4+rnd()*0.8, cr=1.35+rnd()*0.55;
@@ -2984,6 +3114,7 @@ SceneBuilders.lake = function(){
     flies.material.opacity=Math.min(1, 0.95*fb);
     flies.material.size=0.09*fb;
   };
+  Props.lake(g, rnd);
   return { group:g, ambient:['water','wind','crickets'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.3,-6] };
 };
 
@@ -3085,6 +3216,7 @@ SceneBuilders.ginkgo = function(){
     const st=(t - g.userData.seatT); const sg=g.userData.seatGlows && g.userData.seatGlows[0];
     if(sg){ const sc=st<2.6 ? Math.sin(Math.min(1,st/2.6)*Math.PI) : 0; sg.material.opacity=0.5*sc; sg.scale.setScalar(2.2*(1+sc*0.8)); }
   };
+  Props.ginkgo(g, rnd);
   return { group:g, ambient:['birds','leaves'], fog, background:bg, cameraPos:[0,1.6,16], lookAt:[0,1.6,-6] };
 };
 
@@ -3435,7 +3567,480 @@ SceneBuilders.hall = function(){
     Sheet.tick(dt);
   };
 
+  Props.hall(g, rnd);
   return { group:g, ambient:['room'], fog, background:bg, cameraPos:[0,1.75,5.5], lookAt:[0,1.25,-4.6] };
+};
+
+/* ============================================================
+   3b. 场景陈设 · 可探查物件（探索层）
+   —— 每个场景新增 4 处可交互/可探查物件，含 1 处需靠近细看的隐藏线索
+   ============================================================ */
+const Props = {};
+
+/* ---------- 图书馆窗边 ---------- */
+Props.library = function(g, rnd){
+  const ticks=[];
+  const ceramic=new THREE.MeshStandardMaterial({ color:'#dfe6ee', roughness:.42, metalness:.05 });
+  const woodDark=new THREE.MeshStandardMaterial({ color:'#5a3f28', roughness:.78 });
+  const paperMat=new THREE.MeshStandardMaterial({ color:'#f3ecd7', roughness:.62, side:THREE.DoubleSide });
+
+  // 桌上的一杯温茶
+  const mug=new THREE.Group(); mug.position.set(0.8,0.845,-2.9);
+  mug.add(put(cyl(0.072,0.062,0.125,ceramic,20),0,0.062,0));
+  const mugHandle=new THREE.Mesh(new THREE.TorusGeometry(0.045,0.011,6,12), ceramic);
+  mugHandle.position.set(0.086,0.07,0); mug.add(mugHandle);
+  const tea=new THREE.Mesh(new THREE.CircleGeometry(0.06,16), new THREE.MeshStandardMaterial({ color:'#8a5a30', roughness:.3 }));
+  tea.rotation.x=-Math.PI/2; tea.position.y=0.122; mug.add(tea);
+  g.add(mug);
+  const steamTex=glowTex('#ffffff','rgba(235,245,255,0.35)');
+  const steams=[0,1,2].map(()=>{ const s=makeGlowSprite(steamTex,0.8,1.0,-2.9,0.2); s.material.opacity=0; s.renderOrder=6; g.add(s); return s; });
+  registerHotspot(g, 0.8, 0.95, -2.9, { id:'lib.mug', r:0.36, scale:0.66, tint:0xdfe6ee, title:'一杯温茶',
+    text:'茶还温着。不必急着喝完，先让手心暖一暖。',
+    act:()=>{ SFX.cup(); g.userData.mugT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.mugT||-99);
+    steams.forEach((s,i)=>{
+      if(q<0 || q>3.6){ s.material.opacity=0; return; }
+      const f=((q*0.7)+i*0.33)%1;
+      s.position.set(0.8+Math.sin((f+i)*3.1)*0.035, 0.99+f*0.30, -2.9);
+      s.material.opacity=0.30*Math.sin(f*Math.PI);
+    });
+  });
+
+  // 窗台绿植
+  const plant=new THREE.Group(); plant.position.set(-3.55,2.42,-7.48);
+  plant.add(put(cyl(0.13,0.10,0.17,new THREE.MeshStandardMaterial({ color:'#9a6a48', roughness:.85 }),12),0,0.085,0));
+  const leafMat=new THREE.MeshStandardMaterial({ color:'#3f7a52', roughness:.78 });
+  const leaves=[];
+  for(let i=0;i<5;i++){
+    const a=i/5*Math.PI*2;
+    const l=cone(0.055,0.24,leafMat,6);
+    l.position.set(Math.cos(a)*0.06, 0.25, Math.sin(a)*0.06);
+    l.rotation.z=Math.cos(a)*0.5; l.rotation.x=Math.sin(a)*0.5;
+    plant.add(l); leaves.push(l);
+  }
+  plant.scale.setScalar(1.35); g.add(plant);
+  registerHotspot(g, -3.55, 2.68, -7.48, { id:'lib.plant', r:0.42, scale:0.7, tint:0xa8e0b8, title:'窗台的绿意',
+    text:'它一直在窗边，替你晒太阳。你也该被好好照顾，哪怕只是一点点。',
+    act:()=>{ SFX.page(); g.userData.plantT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.plantT||-99);
+    const k=q<1.8 ? Math.sin(Math.min(1,q/1.8)*Math.PI) : 0;
+    leaves.forEach((l,i)=>{ l.rotation.z=Math.cos(i/5*Math.PI*2)*0.5 + k*0.24*Math.sin(t*6+i); });
+  });
+
+  // 墙上的挂钟（停摆）
+  const clock=new THREE.Group(); clock.position.set(6.5,5.0,-7.86);
+  clock.add(new THREE.Mesh(new THREE.CircleGeometry(0.62,32), new THREE.MeshStandardMaterial({ color:'#f0e6cf', roughness:.6, emissive:'#6a5a3c', emissiveIntensity:.55 })));
+  const clockRim=new THREE.Mesh(new THREE.TorusGeometry(0.63,0.045,8,32), woodDark); clock.add(clockRim);
+  const handMat=new THREE.MeshStandardMaterial({ color:'#3a3226', roughness:.5, emissive:'#241c12', emissiveIntensity:.5 });
+  const hourG=new THREE.Group(), minG=new THREE.Group();
+  const hourHand=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.30,0.02), handMat); hourHand.position.y=0.14; hourG.add(hourHand);
+  const minHand=new THREE.Mesh(new THREE.BoxGeometry(0.038,0.46,0.02), handMat); minHand.position.y=0.22; minG.add(minHand);
+  hourG.position.z=0.02; minG.position.z=0.03; clock.add(hourG); clock.add(minG);
+  hourG.rotation.z=0.52; minG.rotation.z=-1.78;
+  g.add(clock);
+  registerHotspot(g, 6.5, 5.0, -7.78, { id:'lib.clock', r:0.58, scale:0.98, tint:0xf0e6cf, title:'停摆的钟',
+    text:'它停在十点十七分——那是你终于肯放下书的时刻。原来时间也会心疼人。',
+    act:()=>{ SFX.tick(); g.userData.clockT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.clockT||-99);
+    if(q<0 || q>2.6) return;
+    const p=Math.min(1,q/2.6), e=1-Math.pow(1-p,3);
+    minG.rotation.z=-1.78+e*Math.PI*2;
+    hourG.rotation.z=0.52+e*Math.PI*2/12;
+  });
+
+  // 木箱与折起的纸条（隐藏线索）
+  const crate=new THREE.Group(); crate.position.set(-2.65,0,-2.05); crate.rotation.y=0.32;
+  crate.add(put(box(0.62,0.44,0.46,woodDark),0,0.22,0));
+  crate.add(put(box(0.66,0.05,0.5,new THREE.MeshStandardMaterial({ color:'#6b4a2c', roughness:.82 })),0,0.45,0));
+  g.add(crate);
+  const note=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.2), paperMat);
+  note.rotation.x=-Math.PI/2; note.rotation.z=0.5; note.position.set(-2.62,0.485,-2.03); g.add(note);
+  registerHotspot(g, -2.62, 0.5, -2.03, { id:'lib.note', faint:true, r:0.42, scale:0.55, tint:0xfff2c8, title:'箱底的一张纸',
+    text:'箱底压着一张折起的纸条，字迹是你自己的：「如果读到这里，说明你还在。那就好。」',
+    act:()=>{ SFX.page(); g.userData.noteT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.noteT||-99);
+    if(q<0 || q>1.8) return;
+    const p=Math.min(1,q/1.8);
+    note.position.y=0.485+Math.sin(p*Math.PI)*0.2;
+    note.rotation.z=0.5+p*0.5;
+  });
+
+  g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
+};
+
+/* ---------- 星空校园 ---------- */
+Props.campus = function(g, rnd){
+  const ticks=[];
+  const wood=new THREE.MeshStandardMaterial({ color:'#6b4d2e', roughness:.75 });
+  const metal=new THREE.MeshStandardMaterial({ color:'#8a93a8', roughness:.45, metalness:.55, emissive:'#1a2030', emissiveIntensity:.6 });
+
+  // 路边长椅
+  const bench=new THREE.Group(); bench.position.set(-5.0,0,2.6); bench.rotation.y=Math.PI/2+0.12;
+  bench.add(put(box(1.9,0.08,0.5,wood),0,0.44,0));
+  bench.add(put(box(1.9,0.08,0.42,wood),0,0.78,-0.24)); bench.children[1].rotation.x=-0.22;
+  bench.add(put(box(0.08,0.44,0.44,metal),-0.86,0.22,0));
+  bench.add(put(box(0.08,0.44,0.44,metal),0.86,0.22,0));
+  g.add(bench);
+  registerHotspot(g, -5.0, 0.7, 2.6, { id:'cam.bench', r:0.8, scale:1.15, tint:0xffe2a8, title:'路边的长椅',
+    text:'木头还留着白天的余温。坐一会儿吧，没有人会催你。',
+    act:()=>{ SFX.thud(); g.userData.benchT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.benchT||-99);
+    if(q<0||q>1.4) return;
+    bench.position.y=Math.sin(Math.min(1,q/1.4)*Math.PI)*-0.03;
+  });
+
+  // 自动售货机
+  const vend=new THREE.Group(); vend.position.set(8.6,0,-1.4); vend.rotation.y=-0.38;
+  vend.add(put(box(1.05,2.0,0.72,new THREE.MeshStandardMaterial({ color:'#2b3a52', roughness:.72 })),0,1.0,0));
+  const faceTex=makeCanvas(128,256,(c,w,h)=>{
+    c.fillStyle='#0b1626'; c.fillRect(0,0,w,h);
+    c.fillStyle='#7ec8ff'; c.fillRect(6,6,w-12,24);
+    c.font='bold 13px sans-serif'; c.fillStyle='#071422'; c.textAlign='center'; c.fillText('DRINKS', w/2, 23);
+    const cols=['#f2a65a','#7ec8ff','#a8e0b8','#f7c86a'];
+    for(let r=0;r<5;r++) for(let cc=0;cc<4;cc++){
+      c.fillStyle=cols[(r+cc)%4]; c.fillRect(9+cc*28, 42+r*36, 20, 26);
+      c.fillStyle='rgba(255,255,255,0.22)'; c.fillRect(11+cc*28, 44+r*36, 5, 22);
+    }
+    c.fillStyle='#132033'; c.fillRect(0,224,w,32);
+    c.fillStyle='#4a6488'; c.fillRect(10,232,w-20,10);
+  });
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(0.9,1.76), new THREE.MeshBasicMaterial({ map:faceTex }));
+  face.position.set(0,1.12,0.365); vend.add(face);
+  const vGlow=makeGlowSprite(glowTex('#7ec8ff','rgba(110,190,255,0.26)'), 0,1.12,0.62, 1.9);
+  vGlow.material.opacity=0.55; g.add(vGlow);
+  const can=cyl(0.055,0.055,0.13,new THREE.MeshStandardMaterial({ color:'#f2a65a', roughness:.35, metalness:.5 }),14);
+  can.position.set(8.6,0.62,-1.1); can.visible=false; g.add(can);
+  g.add(vend);
+  registerHotspot(g, 8.6, 1.15, -1.05, { id:'cam.vend', r:0.75, scale:1.2, tint:0x7ec8ff, title:'深夜售货机',
+    text:'投一枚硬币，掉出一罐热饮。深夜里，这点甜是允许的。',
+    act:()=>{ SFX.thud(); g.userData.vendT=sceneTime; can.visible=true; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.vendT||-99);
+    if(q<0 || q>1.8){ can.visible=false; return; }
+    can.visible=true;
+    const p=Math.min(1,q/0.55);
+    const fall=Math.min(1,q/0.9);
+    can.position.y=0.62+ (1-fall)*0.55 - Math.abs(Math.sin(p*Math.PI*3))*0.03*fall;
+    can.rotation.z=Math.sin(q*9)*0.2*(1-fall);
+  });
+
+  // 自行车
+  const bike=new THREE.Group(); bike.position.set(-5.4,0,-1.2); bike.rotation.y=0.28; bike.scale.setScalar(1.25);
+  const wheelGeo=new THREE.TorusGeometry(0.33,0.032,7,18);
+  const w1=new THREE.Mesh(wheelGeo,metal), w2=new THREE.Mesh(wheelGeo,metal);
+  w1.position.set(-0.5,0.33,0); w2.position.set(0.5,0.33,0); bike.add(w1); bike.add(w2);
+  const frameMat=new THREE.MeshStandardMaterial({ color:'#4a9ec4', roughness:.42, metalness:.45, emissive:'#123040', emissiveIntensity:.6 });
+  const bar1=box(0.98,0.05,0.05,frameMat); bar1.position.set(0,0.62,0); bar1.rotation.z=0.1; bike.add(bar1);
+  const bar2=box(0.05,0.42,0.05,frameMat); bar2.position.set(0.4,0.45,0); bike.add(bar2);
+  const bar3=box(0.05,0.36,0.05,frameMat); bar3.position.set(-0.42,0.48,0); bar3.rotation.z=0.5; bike.add(bar3);
+  const seat=box(0.2,0.05,0.1,new THREE.MeshStandardMaterial({ color:'#22242c', roughness:.8 })); seat.position.set(0.3,0.78,0); bike.add(seat);
+  const bars=box(0.05,0.05,0.42,metal); bars.position.set(-0.5,0.78,0); bike.add(bars);
+  g.add(bike);
+  registerHotspot(g, -5.4, 0.75, -1.2, { id:'cam.bike', r:0.7, scale:1.1, tint:0xa8d8ff, title:'没上锁的自行车',
+    text:'车没上锁，好像随时可以骑走。哪怕只是想想去哪里，胸口也松了一点。',
+    act:()=>{ SFX.bell(); g.userData.bikeT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.bikeT||-99);
+    const spin=q<1.6 ? 6*(1-q/1.6) : 0;
+    if(spin>0){ w1.rotation.z-=spin*dt*12; w2.rotation.z-=spin*dt*12; }
+  });
+
+  // 草丛里的猫（隐藏）
+  const cat=new THREE.Group(); cat.position.set(-3.4,0.18,1.6); cat.rotation.y=-0.9; cat.scale.setScalar(0.9);
+  const fur=new THREE.MeshStandardMaterial({ color:'#2b2f38', roughness:.9 });
+  const body=sph(0.17,fur,10); body.scale.set(1.35,0.85,0.85); cat.add(body);
+  const head=sph(0.105,fur,10); head.position.set(0.22,0.11,0); cat.add(head);
+  const earL=cone(0.045,0.09,fur,6); earL.position.set(0.24,0.2,0.055); cat.add(earL);
+  const earR=cone(0.045,0.09,fur,6); earR.position.set(0.24,0.2,-0.055); cat.add(earR);
+  const tail=cyl(0.02,0.028,0.34,fur,6); tail.position.set(-0.24,0.07,0); tail.rotation.z=1.0; cat.add(tail);
+  const eyeMat=new THREE.MeshBasicMaterial({ color:'#c8e6a0' });
+  const e1=sph(0.018,eyeMat,6), e2=sph(0.018,eyeMat,6);
+  e1.position.set(0.31,0.13,0.045); e2.position.set(0.31,0.13,-0.045); cat.add(e1); cat.add(e2);
+  g.add(cat);
+  registerHotspot(g, -3.4, 0.26, 1.6, { id:'cam.cat', faint:true, r:0.46, scale:0.6, tint:0xd8f0b0, title:'草丛里有什么',
+    text:'一只猫蜷在草里，睁眼看你一眼，又把头埋回尾巴。原来深夜也有人（猫）陪着你。',
+    act:()=>{ SFX.meow(); g.userData.catT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.catT||-99);
+    const k=q<2.2 ? Math.sin(Math.min(1,q/2.2)*Math.PI) : 0;
+    tail.rotation.z=1.0+k*0.7*Math.sin(t*7);
+    cat.position.y=0.18+Math.sin(t*1.1)*0.006;
+  });
+
+  g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
+};
+
+/* ---------- 湖畔步道 ---------- */
+Props.lake = function(g, rnd){
+  const ticks=[];
+  const wood=new THREE.MeshStandardMaterial({ color:'#5e4529', roughness:.8 });
+  const stone=new THREE.MeshStandardMaterial({ color:'#6a6f70', roughness:.9 });
+
+  // 木栏杆与许愿锁
+  const rail=new THREE.Group(); rail.position.set(-2.6,0,1.6); rail.rotation.y=0.12;
+  rail.add(put(cyl(0.055,0.065,0.95,wood,8),0,0.47,0.9));
+  rail.add(put(cyl(0.055,0.065,0.95,wood,8),0,0.47,-0.9));
+  const topBar=box(0.08,0.07,1.9,wood); topBar.position.set(0,0.92,0); rail.add(topBar);
+  g.add(rail);
+  const lock=new THREE.Group(); lock.position.set(-2.56,0.78,1.55);
+  const lockBody=box(0.075,0.09,0.03,new THREE.MeshStandardMaterial({ color:'#c9a24a', roughness:.4, metalness:.7 })); lock.add(lockBody);
+  const shackle=new THREE.Mesh(new THREE.TorusGeometry(0.035,0.009,6,12), new THREE.MeshStandardMaterial({ color:'#d8b45e', roughness:.35, metalness:.8 }));
+  shackle.position.y=0.055; lock.add(shackle);
+  g.add(lock);
+  registerHotspot(g, -2.56, 0.82, 1.55, { id:'lake.lock', r:0.4, scale:0.62, tint:0xffe2a8, title:'栏杆上的小锁',
+    text:'锁面刻着两个字母，已经磨得看不清了。有些约定不必被记住，它发生过就够了。',
+    act:()=>{ SFX.chime(); g.userData.lockT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.lockT||-99);
+    if(q<0||q>2.4) return;
+    lock.rotation.z=Math.sin(q*7)*0.35*Math.exp(-q*1.6);
+  });
+
+  // 岸边的小舟
+  const boat=new THREE.Group(); boat.position.set(-6.6,0.16,-8.2); boat.rotation.y=0.25;
+  const hull=new THREE.MeshStandardMaterial({ color:'#6d4a2a', roughness:.8 });
+  const hullBody=box(2.2,0.28,0.8,hull); boat.add(hullBody);
+  const bow=cone(0.42,0.66,hull,4); bow.rotation.z=-Math.PI/2; bow.rotation.y=Math.PI/4; bow.position.set(1.3,0.02,0); bow.scale.set(1,1,0.9); boat.add(bow);
+  const stern=cone(0.4,0.5,hull,4); stern.rotation.z=Math.PI/2; stern.rotation.y=Math.PI/4; stern.position.set(-1.25,0.02,0); boat.add(stern);
+  const seatA=box(0.5,0.06,0.66,wood); seatA.position.set(0.05,0.17,0); boat.add(seatA);
+  const lantern=sph(0.09,new THREE.MeshStandardMaterial({ color:'#ffd9a0', emissive:'#ffb95e', emissiveIntensity:1.6, roughness:.5 }),8);
+  lantern.position.set(-0.7,0.36,0); boat.add(lantern);
+  const boatGlow=makeGlowSprite(glowTex('#ffd9a0','rgba(255,190,120,0.4)'), -6.6,0.5,-8.2, 1.5);
+  boatGlow.material.opacity=0.5; g.add(boatGlow);
+  g.add(boat);
+  registerHotspot(g, -6.6, 0.55, -8.2, { id:'lake.boat', r:0.95, scale:1.35, tint:0xffd9a0, title:'岸边的小舟',
+    text:'船绳松松系在木桩上，随水轻轻晃。你也可以什么都不做，就这样晃一会儿。',
+    act:()=>{ SFX.water(); g.userData.boatT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.boatT||-99);
+    const k=q<3 ? Math.sin(Math.min(1,q/3)*Math.PI) : 0;
+    boat.position.y=0.16+Math.sin(t*1.3)*0.015+k*0.03*Math.sin(t*3.2);
+    boat.rotation.z=Math.sin(t*0.9)*0.012+k*0.03*Math.sin(t*2.6);
+  });
+
+  // 岸边的芦苇丛
+  const reedGrp=new THREE.Group(); reedGrp.position.set(6.4,0,-13.0);
+  const reedMat=new THREE.MeshStandardMaterial({ color:'#4a7a58', roughness:.95 });
+  for(let i=0;i<9;i++){
+    const hgt=1.1+rnd()*0.8;
+    const r=cyl(0.022,0.03,hgt,reedMat,5);
+    r.position.set((rnd()-0.5)*0.7, hgt/2, (rnd()-0.5)*0.5);
+    r.rotation.z=(rnd()-0.5)*0.18;
+    reedGrp.add(r);
+  }
+  g.add(reedGrp);
+  registerHotspot(g, 6.4, 0.95, -13.0, { id:'lake.reed', r:0.7, scale:1.0, tint:0xc8e8b0, title:'风穿过芦苇',
+    text:'芦苇低下头，又直起来。风来的时候，不必硬撑，顺着弯一下就好。',
+    act:()=>{ SFX.noise(0.6, 3200, 0.7, 0.07, 'highpass'); g.userData.reedT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.reedT||-99);
+    const k=q<2.2 ? Math.sin(Math.min(1,q/2.2)*Math.PI) : 0.35;
+    reedGrp.children.forEach((r,i)=>{ r.rotation.z=Math.sin(t*1.6+i*0.7)*(0.06+0.14*k); });
+  });
+
+  // 水边的白鹭（隐藏）
+  const bird=new THREE.Group(); bird.position.set(-9.2,0.42,-11.4); bird.rotation.y=0.8;
+  const feather=new THREE.MeshStandardMaterial({ color:'#e8eef4', roughness:.85 });
+  const bBody=sph(0.16,feather,10); bBody.scale.set(1.5,0.8,0.85); bird.add(bBody);
+  const neck=cyl(0.03,0.04,0.3,feather,6); neck.position.set(0.2,0.16,0); neck.rotation.z=-0.35; bird.add(neck);
+  const bHead=sph(0.055,feather,8); bHead.position.set(0.28,0.31,0); bird.add(bHead);
+  const beak=cone(0.022,0.1,new THREE.MeshStandardMaterial({ color:'#d8a23a', roughness:.6 }),6);
+  beak.rotation.z=-Math.PI/2; beak.position.set(0.36,0.30,0); bird.add(beak);
+  g.add(bird);
+  registerHotspot(g, -9.2, 0.52, -11.4, { id:'lake.egret', faint:true, r:0.46, scale:0.62, tint:0xe8f2ff, title:'水边的白鹭',
+    text:'它一直站在浅水里，一动不动。你走近，它才缓缓展开翅膀——原来安静也是一种力量。',
+    act:()=>{ SFX.noise(0.5, 1800, 0.6, 0.06); g.userData.egretT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.egretT||-99);
+    if(q<0 || q>3.4){ bird.position.y=0.42; bird.position.x=-9.2; return; }
+    const p=Math.min(1,q/2.6);
+    bird.position.y=0.42+p*2.6;
+    bird.position.x=-9.2-p*2.2;
+    bird.position.z=-11.4-p*1.4;
+    bird.rotation.z=Math.sin(p*Math.PI)*0.25;
+  });
+
+  g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
+};
+
+/* ---------- 银杏大道 ---------- */
+Props.ginkgo = function(g, rnd){
+  const ticks=[];
+  const wood=new THREE.MeshStandardMaterial({ color:'#6b4a2e', roughness:.8 });
+  const brass=new THREE.MeshStandardMaterial({ color:'#c9a24a', roughness:.35, metalness:.75 });
+
+  // 路边的风铃架
+  const stand=new THREE.Group(); stand.position.set(3.5,0,7.2); stand.rotation.y=-0.25;
+  stand.add(put(cyl(0.05,0.07,2.6,wood,8),0,1.3,0));
+  const arm=box(0.06,0.06,0.85,wood); arm.position.set(0,2.55,0.38); stand.add(arm);
+  const chimeTop=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.035,12), wood); chimeTop.position.set(0,2.4,0.72); stand.add(chimeTop);
+  const tubes=new THREE.Group(); tubes.position.set(0,2.34,0.72); stand.add(tubes);
+  for(let i=0;i<4;i++){
+    const len=0.34-i*0.05;
+    const tb=cyl(0.016,0.016,len,brass,8);
+    const a=i/4*Math.PI*2;
+    tb.position.set(Math.cos(a)*0.075, -len/2, Math.sin(a)*0.075);
+    tubes.add(tb);
+  }
+  const clapper=sph(0.032,wood,8); clapper.position.set(0,-0.28,0); tubes.add(clapper);
+  g.add(stand);
+  registerHotspot(g, 3.5, 2.15, 7.9, { id:'gin.chime', r:0.55, scale:0.9, tint:0xffe2a8, title:'树下的风铃',
+    text:'风一吹，它就替你说了一句「没关系」。有些话，不用自己讲出口。',
+    act:()=>{ SFX.chime(); g.userData.chimeT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.chimeT||-99);
+    const k=q<2.6 ? Math.sin(Math.min(1,q/2.6)*Math.PI) : 0.18;
+    tubes.rotation.z=Math.sin(t*2.1)*(0.04+0.22*k);
+    tubes.rotation.x=Math.cos(t*1.7)*(0.03+0.16*k);
+  });
+
+  // 老邮筒
+  const post=new THREE.Group(); post.position.set(-4.6,0,9.4); post.rotation.y=0.18;
+  post.add(put(cyl(0.22,0.24,1.18,new THREE.MeshStandardMaterial({ color:'#7a3b32', roughness:.78 }),14),0,0.59,0));
+  post.add(put(new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.06,14), new THREE.MeshStandardMaterial({ color:'#8a4438', roughness:.7 })),0,1.2,0));
+  const slot=box(0.24,0.03,0.02,new THREE.MeshStandardMaterial({ color:'#1b1210', roughness:.9 })); slot.position.set(0,1.02,0.225); post.add(slot);
+  g.add(post);
+  const letter=new THREE.Mesh(new THREE.PlaneGeometry(0.18,0.11), new THREE.MeshStandardMaterial({ color:'#f6efdc', roughness:.6, side:THREE.DoubleSide }));
+  letter.position.set(-4.6,1.02,9.63); letter.rotation.x=-0.4; letter.visible=false; g.add(letter);
+  registerHotspot(g, -4.6, 1.05, 9.6, { id:'gin.post', r:0.55, scale:0.9, tint:0xf2c48a, title:'老邮筒',
+    text:'你写了一张没有地址的明信片，投进去。有些话不必寄到谁手里，写下来就已经轻了一半。',
+    act:()=>{ SFX.page(); g.userData.postT=sceneTime; letter.visible=true; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.postT||-99);
+    if(q<0 || q>1.5){ letter.visible=false; return; }
+    letter.visible=true;
+    const p=Math.min(1,q/1.5);
+    letter.position.set(-4.6, 1.02+Math.sin(p*Math.PI)*0.1, 9.63-p*0.16);
+  });
+
+  // 落叶堆
+  const pile=new THREE.Group(); pile.position.set(2.5,0,7.6);
+  const pileMat=new THREE.MeshStandardMaterial({ color:'#c08a3a', roughness:.95 });
+  const pileMat2=new THREE.MeshStandardMaterial({ color:'#d9a552', roughness:.95 });
+  for(let i=0;i<8;i++){
+    const s=sph(0.16+rnd()*0.12, i%2?pileMat:pileMat2, 7);
+    s.position.set((rnd()-0.5)*0.9, 0.05+rnd()*0.08, (rnd()-0.5)*0.7);
+    s.scale.y=0.45; pile.add(s);
+  }
+  g.add(pile);
+  registerHotspot(g, 2.5, 0.25, 7.6, { id:'gin.pile', r:0.5, scale:0.85, tint:0xf7c86a, title:'一堆落叶',
+    text:'踩上去，沙的一声。你忽然想起小时候，专门挑叶子厚的地方走。',
+    act:()=>{ SFX.noise(0.35, 2400, 0.8, 0.08, 'highpass'); g.userData.burstT=sceneTime; } });
+
+  // 木牌（隐藏）
+  const sign=new THREE.Group(); sign.position.set(-3.6,0,10.6); sign.rotation.y=0.35;
+  sign.add(put(cyl(0.045,0.05,1.5,wood,6),0,0.75,0));
+  const board=box(0.62,0.34,0.035,new THREE.MeshStandardMaterial({ color:'#8a6a44', roughness:.85 }));
+  board.position.set(0,1.52,0); sign.add(board);
+  const carveTex=makeCanvas(128,64,(c,w,h)=>{
+    c.fillStyle='#8a6a44'; c.fillRect(0,0,w,h);
+    c.fillStyle='rgba(60,40,24,0.75)'; c.font='bold 26px "Microsoft YaHei",sans-serif'; c.textAlign='center';
+    c.fillText('2019 · 秋', w/2, 40);
+  });
+  const carve=new THREE.Mesh(new THREE.PlaneGeometry(0.58,0.3), new THREE.MeshBasicMaterial({ map:carveTex, transparent:true }));
+  carve.position.set(0,1.52,0.02); sign.add(carve);
+  g.add(sign);
+  registerHotspot(g, -3.6, 1.55, 10.6, { id:'gin.sign', faint:true, r:0.46, scale:0.6, tint:0xffe2b0, title:'褪色的木牌',
+    text:'木牌上刻着「2019 · 秋」。那年你第一次一个人走完这条路，以为走不过去的，后来都过去了。',
+    act:()=>{ SFX.thud(); g.userData.signT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.signT||-99);
+    if(q<0||q>1.6) return;
+    sign.rotation.z=Math.sin(q*8)*0.06*Math.exp(-q*2);
+  });
+
+  g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
+};
+
+/* ---------- 音乐厅 · 钢琴 ---------- */
+Props.hall = function(g, rnd){
+  const ticks=[];
+  const wood=new THREE.MeshStandardMaterial({ color:'#5a3a26', roughness:.7 });
+  const metal=new THREE.MeshStandardMaterial({ color:'#2a2a33', roughness:.4, metalness:.6 });
+
+  // 谱架
+  const stand=new THREE.Group(); stand.position.set(-2.15,0.5,-2.6); stand.rotation.y=0.55;
+  stand.add(put(cyl(0.028,0.032,1.05,metal,8),0,0.52,0));
+  stand.add(put(cyl(0.2,0.24,0.04,metal,12),0,0.02,0));
+  const board=new THREE.Group(); board.position.set(0,0.92,0); board.rotation.x=-0.55; stand.add(board);
+  board.add(new THREE.Mesh(new THREE.BoxGeometry(0.62,0.46,0.025), wood));
+  const sheetTex=makeCanvas(128,96,(c,w,h)=>{
+    c.fillStyle='#f6f1e4'; c.fillRect(0,0,w,h);
+    c.strokeStyle='rgba(60,50,40,0.55)'; c.lineWidth=1;
+    for(let i=0;i<5;i++) c.beginPath(), c.moveTo(8,26+i*5), c.lineTo(w-8,26+i*5), c.stroke();
+    for(let i=0;i<5;i++) c.beginPath(), c.moveTo(8,64+i*5), c.lineTo(w-8,64+i*5), c.stroke();
+    c.fillStyle='rgba(50,40,32,0.75)';
+    for(let i=0;i<9;i++) c.fillRect(12+i*13, 22+((i*7)%18), 3, 10);
+  });
+  const sheet=new THREE.Mesh(new THREE.PlaneGeometry(0.56,0.4), new THREE.MeshStandardMaterial({ map:sheetTex, color:'#cfc7b4', roughness:.9, metalness:0 }));
+  sheet.position.set(0,0,0.016); board.add(sheet);
+  g.add(stand);
+  registerHotspot(g, -2.15, 1.44, -2.5, { id:'hall.stand', r:0.5, scale:0.85, tint:0xfff0d0, title:'谱架上的乐谱',
+    text:'页角被翻得起了毛边。你数了数，同一行被圈过很多次——原来重复也是一种认真。',
+    act:()=>{ SFX.page(); g.userData.standT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.standT||-99);
+    if(q<0||q>1.6) return;
+    const p=Math.min(1,q/1.6);
+    sheet.rotation.y=Math.sin(p*Math.PI)*0.5;
+    sheet.position.z=0.016+Math.sin(p*Math.PI)*0.02;
+  });
+
+  // 舞台边的花瓶
+  const vase=new THREE.Group(); vase.position.set(3.1,0.5,-2.0);
+  vase.add(put(cyl(0.11,0.16,0.42,new THREE.MeshStandardMaterial({ color:'#c8d8e0', roughness:.35, metalness:.1 }),14),0,0.21,0));
+  const petalMat=new THREE.MeshStandardMaterial({ color:'#e8a0b0', roughness:.7 });
+  const stemMat=new THREE.MeshStandardMaterial({ color:'#4a7a58', roughness:.9 });
+  const flowers=[];
+  for(let i=0;i<5;i++){
+    const a=i/5*Math.PI*2;
+    const stem=cyl(0.012,0.012,0.42,stemMat,5);
+    stem.position.set(Math.cos(a)*0.05,0.6,Math.sin(a)*0.05);
+    stem.rotation.z=Math.cos(a)*0.22; stem.rotation.x=Math.sin(a)*0.22;
+    vase.add(stem);
+    const petal=sph(0.07,petalMat,7);
+    petal.position.set(Math.cos(a)*0.11,0.82,Math.sin(a)*0.11);
+    petal.scale.y=0.75; vase.add(petal); flowers.push(petal);
+  }
+  g.add(vase);
+  registerHotspot(g, 3.1, 0.78, -2.0, { id:'hall.vase', r:0.55, scale:0.9, tint:0xf0b0c0, title:'舞台边的花',
+    text:'不知道是谁放的，也没人拿走。演出开始前，它们在这里安静地开。',
+    act:()=>{ SFX.chime(); g.userData.vaseT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.vaseT||-99);
+    const k=q<2.4 ? Math.sin(Math.min(1,q/2.4)*Math.PI) : 0;
+    flowers.forEach((f,i)=>{ f.position.y=0.82+k*0.03*Math.sin(t*5+i); });
+  });
+
+  // 幕布（复用原有幕布，仅加交互）
+  registerHotspot(g, 8.6, 5.6, -12.6, { id:'hall.curtain', r:1.6, scale:2.4, tint:0xffc8b0, title:'红丝绒幕布',
+    text:'幕布还没拉开，观众席也没人。你可以先在这里站一会儿——不用表演，也算在场。',
+    act:()=>{ SFX.noise(0.7, 380, 0.5, 0.06); g.userData.curtainT=sceneTime; } });
+
+  // 节目单（隐藏）
+  const stool=new THREE.Group(); stool.position.set(-4.9,0.5,-1.7);
+  stool.add(put(cyl(0.2,0.22,0.06,wood,12),0,0.42,0));
+  stool.add(put(cyl(0.03,0.035,0.42,wood,6),0,0.21,0));
+  g.add(stool);
+  const program=new THREE.Mesh(new THREE.PlaneGeometry(0.26,0.34), new THREE.MeshStandardMaterial({ color:'#f2ead6', roughness:.7, side:THREE.DoubleSide }));
+  program.rotation.x=-Math.PI/2; program.rotation.z=0.28; program.position.set(-4.9,0.46,-1.7); g.add(program);
+  registerHotspot(g, -4.9, 0.5, -1.7, { id:'hall.program', faint:true, r:0.44, scale:0.58, tint:0xfff2c8, title:'琴凳上的节目单',
+    text:'节目单背面有一行铅笔字：「今天手很抖，但我还是弹完了。」落款是三年前。',
+    act:()=>{ SFX.page(); g.userData.progT=sceneTime; } });
+  ticks.push((dt,t)=>{
+    const q=t-(g.userData.progT||-99);
+    if(q<0||q>1.6) return;
+    const p=Math.min(1,q/1.6);
+    program.position.y=0.46+Math.sin(p*Math.PI)*0.16;
+    program.rotation.z=0.28+p*0.5;
+  });
+
+  g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
 };
 
 /* ============================================================
@@ -3485,6 +4090,7 @@ function loadScene(id){
     scene.fog=null; scene.background=null;
     hotspots.length=0;
     hoveredHotspot=null; renderer.domElement.style.cursor='grab';
+    BUILDING_SCENE = id; DISCOVER.ids[id] = [];
     const b=SceneBuilders[id]();
     content.add(b.group);
     scene.fog=b.fog; scene.background=b.background;
@@ -3493,7 +4099,7 @@ function loadScene(id){
     camera.position.set(b.cameraPos[0],b.cameraPos[1],b.cameraPos[2]);
     controls.target.set(b.lookAt[0],b.lookAt[1],b.lookAt[2]);
     $('#st-scene').textContent = SCENES.find(s=>s.id===id).name;
-    curSceneId=id; applyBreathTheme(id);
+    curSceneId=id; BUILDING_SCENE=null; applyBreathTheme(id); updateFoundUI();
     const isPiano = (id==='hall');
     setPianoMode(isPiano);
     if(isPiano){ pauseMusic(); } else { clearTimeout(Piano.guideTimer); Piano.guide.active=false; Piano.pauseAuto(true); if(!playing) $('#st-music').textContent='未播放'; }
@@ -3501,7 +4107,7 @@ function loadScene(id){
     if(id==='hall'){ if(moodPending){ moodPending=null; } showGuidance(id); }
     else if(moodPending && moodPending.scene===id){ showMoodToast(moodPending); moodPending=null; }
     else showGuidance(id);
-    showSceneHint(isPiano ? (IS_COARSE ? '轻点琴键即可演奏 · 建议横屏' : '点击钢琴旁的光点，感受舞台上的专注') : (TAP_WORD+'场景中闪烁的光点，体验互动'), 5500);
+    showSceneHint(isPiano ? (IS_COARSE ? '轻点琴键即可演奏 · 建议横屏' : '点钢琴旁的光点 · 也可细看谱架与舞台') : (TAP_WORD+'闪烁的光点，或细看身边的陈设'), 5500);
   }, 380);
 }
 
@@ -3522,7 +4128,7 @@ function buildSceneCards(){
 }
 function buildMusicList(){
   const row=$('#music-row'); row.innerHTML='';
-  TRACKS.forEach(tr=>{
+  TRACKS.filter(tr=>!tr.hidden || REWARD.unlocked).forEach(tr=>{
     const d=document.createElement('div'); d.className='mtrack'; d.dataset.id=tr.id;
     d.innerHTML=`<div class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
       <div class="meta"><span class="nm">${tr.name}</span><span class="tg">${tr.tag}</span></div>`;
@@ -4121,6 +4727,7 @@ function loop(now){
   const dt=Math.min(0.1,(now-last)/1000); last=now;
   if(activeScene && activeScene.group && activeScene.group.userData && activeScene.group.userData.update){
     activeScene.group.userData.update(dt, sceneTime);
+    if(activeScene.group.userData.propTick) activeScene.group.userData.propTick(dt, sceneTime);
     sceneTime+=dt;
   }
   updateHotspots(sceneTime);
