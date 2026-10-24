@@ -104,6 +104,16 @@
   .vol input[type=range]{ width:90px; accent-color:var(--accent); cursor:pointer; }
 
   /* 提示 */
+  /* 漫游：虚拟摇杆 + 准星 */
+  #joy{ position:fixed; left:calc(18px + env(safe-area-inset-left)); bottom:calc(132px + env(safe-area-inset-bottom)); z-index:30; width:124px; height:124px; display:none; touch-action:none; }
+  #joy.show{ display:block; }
+  #joy .joy-base{ position:absolute; inset:0; border-radius:50%; background:rgba(8,14,26,.42); border:1px solid rgba(126,200,255,.34); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  #joy .joy-knob{ position:absolute; left:50%; top:50%; width:54px; height:54px; margin:-27px 0 0 -27px; border-radius:50%; background:radial-gradient(circle at 38% 32%, #cfeaff, #6cb6ee); box-shadow:0 6px 18px rgba(0,0,0,.35); will-change:transform; }
+  #joy .joy-cap{ position:absolute; left:0; right:0; bottom:-18px; text-align:center; font-size:10px; letter-spacing:2px; color:var(--txt-dim); }
+  #cross{ position:fixed; left:50%; top:50%; width:7px; height:7px; margin:-3.5px 0 0 -3.5px; border-radius:50%; background:rgba(255,255,255,.9); box-shadow:0 0 10px rgba(126,200,255,.85); z-index:26; display:none; pointer-events:none; }
+  body.walking #cross{ display:block; }
+  body.walking #hint{ display:none; }
+  body.walking #joy{ bottom:calc(152px + env(safe-area-inset-bottom)); }
   #hint{ position:fixed; left:50%; bottom:calc(180px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:25; font-size:12px; color:var(--txt-dim); padding:8px 16px; border-radius:20px; background:rgba(0,0,0,.4); opacity:0; transition:opacity .3s; pointer-events:none; letter-spacing:1px; }
   #hint.show{ opacity:1; }
   #scene-hint{ position:fixed; left:50%; top:calc(84px + env(safe-area-inset-top)); transform:translateX(-50%) translateY(-8px); z-index:23; font-size:12px; color:#cfe0ff; padding:8px 16px; border-radius:20px; background:rgba(8,14,30,.55); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid var(--line); opacity:0; transition:opacity .5s ease, transform .5s ease; pointer-events:none; letter-spacing:1px; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; }
@@ -386,8 +396,6 @@
   body.mode-piano #ui-toggle{ display:none; }
 
   @media (pointer:coarse){
-    /* iOS/Android 不支持指针锁定，沉浸模式仅桌面端可用 */
-    #btn-immerse{ display:none; }
     .btn{ min-height:42px; }
     .dlg-close{ width:40px; height:40px; }
     .mtrack{ padding:11px 12px; }
@@ -567,7 +575,7 @@
 
   <div id="brand">
     <div class="t">心屿 <b>·</b> 见心安</div>
-    <div class="s">校园 VR 音乐疗愈系统 · V2.0</div>
+    <div class="s">校园 VR 音乐疗愈系统 · V2.1</div>
   </div>
 
   <div id="status" class="panel">场景 <b id="st-scene">—</b> · 音乐 <b id="st-music">未播放</b> · 发现 <b id="st-found">0</b></div>
@@ -591,7 +599,7 @@
     <div class="row" id="music-row"></div>
     <div class="row ctl">
       <button class="btn primary" id="btn-play" title="播放/暂停"><svg viewBox="0 0 24 24" fill="currentColor"><path id="ic-play" d="M8 5v14l11-7z"/><path id="ic-pause" d="M6 5h4v14H6zM14 5h4v14h-4z" style="display:none"/></svg><span class="lbl" id="btn-play-lbl">播放</span></button>
-      <button class="btn" id="btn-immerse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4"/></svg><span class="lbl">沉浸模式</span></button>
+      <button class="btn" id="btn-immerse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4"/></svg><span class="lbl">漫游</span></button>
       <button class="btn" id="btn-breathe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span class="lbl">呼吸引导</span></button>
       <button class="btn" id="btn-mood"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21C7 16.5 3 13 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 13 17 16.5 12 21z"/></svg><span class="lbl">情绪疗愈</span></button>
       <button class="btn" id="btn-meditate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="lbl">冥想计时</span></button>
@@ -651,6 +659,12 @@
       <div class="dlg-actions" id="med-actions"><button class="btn primary" id="med-toggle">开始</button></div>
     </div>
   </div>
+
+  <div id="joy" aria-hidden="true">
+    <div class="joy-base"><div class="joy-knob"></div></div>
+    <div class="joy-cap">移动</div>
+  </div>
+  <div id="cross"></div>
 
   <div id="fade"></div>
 
@@ -2204,8 +2218,11 @@ function updateHotspots(t){
     const baseOp = (h.op == null ? 0.85 : h.op);
     const amp = h.faint ? 0.05 : Math.max(0.05, (1 - baseOp) * 0.55);
     const pulse = 1 + Math.sin(t*2 + h.ph) * (h.faint ? 0.12 : 0.3);
-    h.marker.scale.setScalar(h.marker.userData.base * pulse * (hovered ? (h.faint ? 1.7 : 1.3) : 1));
-    h.marker.material.opacity = hovered ? Math.min(1, baseOp + 0.55) : Math.max(0.05, baseOp + amp*Math.sin(t*2 + h.ph));
+    /* 走近时自动收敛：避免贴着光点时被一个巨大的圆环糊住视野 */
+    const dist = camera.position.distanceTo(h.hit.position);
+    const near = Math.min(1, Math.max(0.1, (dist - 0.8) / 2.6));
+    h.marker.scale.setScalar(h.marker.userData.base * pulse * (0.45 + 0.55*near) * (hovered ? (h.faint ? 1.7 : 1.25) : 1));
+    h.marker.material.opacity = (hovered ? Math.min(1, baseOp + 0.55) : Math.max(0.05, baseOp + amp*Math.sin(t*2 + h.ph))) * near;
   }
 }
 
@@ -2319,7 +2336,7 @@ controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 /* 镜头飞行：用于「走进树屋 / 走到小屋门口」这类大场景视角切换 */
 let camFly = null;
 function flyTo(pos, target, dur){
-  if(immersive) return;
+  if(walkActive) return;
   camFly = {
     p0:camera.position.clone(), t0:controls.target.clone(),
     p1:new THREE.Vector3(pos[0],pos[1],pos[2]),
@@ -2448,14 +2465,96 @@ document.addEventListener('mousemove', e=>{
 });
 document.addEventListener('pointerlockchange', ()=>{
   immersive = document.pointerLockElement === renderer.domElement;
-  controls.enabled = !immersive;
   if(immersive){
-    euler.setFromQuaternion(camera.quaternion); yaw=euler.y; pitch=euler.x;
+    if(!walkActive) enterWalk(true);
     $('#hint').classList.add('show');
   }else{
     $('#hint').classList.remove('show');
+    if(walkActive && !IS_COARSE) enterWalk(false);
   }
 });
+
+
+/* ---- 漫游：地面行走 + 碰撞 + 近距触发（桌面 WASD / 移动端摇杆） ---- */
+let walkActive=false, lookDrag=null, walkSaved=null;
+const joy={x:0,y:0,on:false};
+const trigDone=new Set();
+
+function resetJoy(){
+  joy.x=0; joy.y=0; joy.on=false;
+  const k=document.querySelector('#joy .joy-knob'); if(k) k.style.transform='translate(0,0)';
+}
+function enterWalk(on){
+  if(on===walkActive && !on) return;
+  walkActive=on;
+  document.body.classList.toggle('walking', on);
+  controls.enabled=!on;
+  const jel=document.getElementById('joy');
+  if(jel) jel.classList.toggle('show', on && IS_COARSE);
+  const btn=document.getElementById('btn-immerse');
+  if(btn) btn.classList.toggle('on', on);
+  if(on){
+    AudioSys.init(); AudioSys.resume();
+    walkSaved={ p:camera.position.clone() };
+    euler.setFromQuaternion(camera.quaternion,'YXZ'); yaw=euler.y; pitch=Math.max(-0.85,Math.min(0.6,euler.x));
+    const w=activeScene&&activeScene.walk;
+    camera.position.y=(w&&w.eye)?w.eye:1.65;
+    resetJoy();
+    showSceneHint(IS_COARSE?'左侧摇杆移动 · 右侧拖动转视角 · 再点一次退出':'W A S D 移动 · 鼠标环顾 · Esc 退出', 6000);
+  }else{
+    if(document.pointerLockElement===renderer.domElement) document.exitPointerLock();
+    if(walkSaved){
+      const fwd=new THREE.Vector3(0,0,-1).applyEuler(euler.set(pitch,yaw,0,'YXZ'));
+      controls.target.copy(camera.position).addScaledVector(fwd, 8);
+      controls.target.y=Math.max(0.8, controls.target.y);
+    }
+    resetJoy();
+  }
+}
+
+function walkConstrain(){
+  const w=activeScene&&activeScene.walk; if(!w) return;
+  const p=camera.position;
+  if(w.b){
+    if(w.b.r){ const d=Math.hypot(p.x,p.z); if(d>w.b.r){ p.x*=w.b.r/d; p.z*=w.b.r/d; } }
+    if(w.b.x0!=null){ p.x=Math.max(w.b.x0,Math.min(w.b.x1,p.x)); p.z=Math.max(w.b.z0,Math.min(w.b.z1,p.z)); }
+  }
+  if(w.col){
+    for(const c of w.col){
+      const dx=p.x-c.x, dz=p.z-c.z, d=Math.hypot(dx,dz);
+      if(d<c.r){
+        if(d<1e-4){ p.x=c.x+c.r; }
+        else { const k=c.r/d; p.x=c.x+dx*k; p.z=c.z+dz*k; }
+      }
+    }
+  }
+}
+function walkTriggers(){
+  const w=activeScene&&activeScene.walk; if(!w||!w.trig) return;
+  for(const tr of w.trig){
+    const d=Math.hypot(camera.position.x-tr.x, camera.position.z-tr.z);
+    const key=curSceneId+':'+tr.id;
+    if(d<tr.r){
+      if(!trigDone.has(key)){ trigDone.add(key); const h=hotspots.find(x=>x.id===tr.id); if(h) triggerHotspot(h); }
+    }else if(d>tr.r*1.7){ trigDone.delete(key); }
+  }
+}
+
+/* 摇杆 */
+(function initJoy(){
+  const el=document.getElementById('joy'); if(!el) return;
+  const knob=el.querySelector('.joy-knob'); const R=40; let pid=null;
+  const setFrom=e=>{
+    const r=el.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+    let dx=e.clientX-cx, dy=e.clientY-cy; const d=Math.hypot(dx,dy)||1;
+    const k=Math.min(1,d/R); const nx=dx/d*k, ny=dy/d*k;
+    joy.x=nx; joy.y=ny; knob.style.transform='translate('+(nx*R)+'px,'+(ny*R)+'px)';
+  };
+  el.addEventListener('pointerdown', e=>{ e.preventDefault(); pid=e.pointerId; joy.on=true; try{ el.setPointerCapture(pid); }catch(err){} setFrom(e); });
+  el.addEventListener('pointermove', e=>{ if(joy.on && e.pointerId===pid){ e.preventDefault(); setFrom(e); } });
+  const end=()=>{ if(pid===null) return; pid=null; resetJoy(); };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('pointerleave', end);
+})();
 
 /* 场景互动热点：点击 / 轻点拾取（区分拖拽与点击） */
 let hotDownX=0, hotDownY=0, hotDownT=0;
@@ -2465,15 +2564,23 @@ renderer.domElement.addEventListener('pointerdown', e=>{
     /* 手指刚触屏就给一次触感 + 涟漪，让“按下去”立刻有回应 */
     haptic(10, e.clientX, e.clientY);
     tapRipple(e.clientX, e.clientY);
+    if(walkActive && e.clientX > innerWidth*0.42) lookDrag={x:e.clientX,y:e.clientY};
   }
 });
 renderer.domElement.addEventListener('pointerup', e=>{
+  lookDrag=null;
   if(document.pointerLockElement) return;
   const dt=performance.now()-hotDownT;
   if(Math.hypot(e.clientX-hotDownX, e.clientY-hotDownY) > 7 || dt > 500) return;
   pickHotspot(e.clientX, e.clientY);
 });
 renderer.domElement.addEventListener('pointermove', e=>{
+  if(walkActive && lookDrag && !immersive){
+    yaw -= (e.clientX-lookDrag.x)*0.006;
+    pitch = Math.max(-1.1, Math.min(0.9, pitch - (e.clientY-lookDrag.y)*0.006));
+    lookDrag={x:e.clientX,y:e.clientY};
+    return;
+  }
   if(document.pointerLockElement) return;
   const h = pickHotspotAt(e.clientX, e.clientY);
   hoveredHotspot = h;
@@ -3138,7 +3245,10 @@ SceneBuilders.forest = function(){
     th.lamps.forEach((l,i)=>{ l.rotation.z=Math.sin(t*1.3+i)*0.06; });
   };
 
-  return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,4.8,20], lookAt:[-2,3.4,-11] };
+  return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,4.8,20], lookAt:[-2,3.4,-11],
+    walk:{ eye:1.68, b:{r:26},
+      col:[{x:-11.5,z:-12.5,r:2.9},{x:12.6,z:-9.5,r:5.0},{x:3.4,z:1.2,r:1.9}],
+      trig:[{x:9.2,z:-5.4,r:2.8,id:'forest.cabin'},{x:-10.4,z:-10.0,r:2.2,id:'forest.ladder'},{x:3.4,z:2.4,r:1.7,id:'forest.fire'}] } };
 };
 
 
@@ -3285,7 +3395,9 @@ SceneBuilders.library = function(){
   };
 
   Props.library(g, rnd);
-  return { group:g, ambient:['rain'], fog, background:bg, cameraPos:[0,1.6,3.4], lookAt:[0,1.5,-3] };
+  return { group:g, ambient:['rain'], fog, background:bg, cameraPos:[0,1.6,3.4], lookAt:[0,1.5,-3],
+    walk:{ eye:1.62, b:{x0:-6.6,x1:6.6,z0:-7.2,z1:5.2},
+      col:[{x:0,z:-3.2,r:1.7},{x:-3.2,z:-5,r:1.5},{x:3.2,z:-5,r:1.5},{x:-1.6,z:-7.4,r:1.3},{x:1.6,z:-7.4,r:1.3},{x:-5.5,z:-7,r:1.3},{x:5.5,z:-7,r:1.3},{x:-2.65,z:-2.05,r:.6}] } };
 };
 
 /* ---------- 场景二：星空校园 ---------- */
@@ -3412,7 +3524,9 @@ SceneBuilders.campus = function(){
     if(glow && head){ const q=(t - sb.t0); const boost=q<2.2 ? Math.sin(Math.min(1,q/2.2)*Math.PI) : 0; glow.scale.setScalar(2.6*(1+0.7*boost)); head.material.color.setHSL(0.11, 0.9, 0.66+0.26*boost); }
   };
   Props.campus(g, rnd);
-  return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.4,-4] };
+  return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.4,-4],
+    walk:{ eye:1.66, b:{r:30},
+      col:[{x:-8.6,z:-6.6,r:3.9},{x:8.6,z:-1.4,r:1.0},{x:-5,z:2.6,r:1.3},{x:-5.4,z:-1.2,r:0.9},{x:-2.6,z:1.2,r:1.1}] } };
 };
 
 /* ---------- 场景三：湖畔步道 ---------- */
@@ -3552,7 +3666,9 @@ SceneBuilders.lake = function(){
     flies.material.size=0.09*fb;
   };
   Props.lake(g, rnd);
-  return { group:g, ambient:['water','wind','crickets'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.3,-6] };
+  return { group:g, ambient:['water','wind','crickets'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.3,-6],
+    walk:{ eye:1.66, b:{x0:-12,x1:12,z0:-8.6,z1:15},
+      col:[{x:4.5,z:6,r:1.2},{x:-2.6,z:1.6,r:0.9},{x:4.2,z:1.4,r:0.7}] } };
 };
 
 /* ---------- 场景四：银杏大道 ---------- */
@@ -3654,7 +3770,9 @@ SceneBuilders.ginkgo = function(){
     if(sg){ const sc=st<2.6 ? Math.sin(Math.min(1,st/2.6)*Math.PI) : 0; sg.material.opacity=0.5*sc; sg.scale.setScalar(2.2*(1+sc*0.8)); }
   };
   Props.ginkgo(g, rnd);
-  return { group:g, ambient:['birds','leaves'], fog, background:bg, cameraPos:[0,1.6,16], lookAt:[0,1.6,-6] };
+  return { group:g, ambient:['birds','leaves'], fog, background:bg, cameraPos:[0,1.6,16], lookAt:[0,1.6,-6],
+    walk:{ eye:1.66, b:{r:33},
+      col:[{x:-5.8,z:3.2,r:1.9},{x:-4.2,z:2,r:1.0},{x:4.2,z:14,r:1.0},{x:-4.6,z:9.4,r:0.7}] } };
 };
 
 /* ---------- 数字简谱提示面板（悬浮钢琴上方 · 跟弹练习引导 / 自动示范） ---------- */
@@ -4005,7 +4123,9 @@ SceneBuilders.hall = function(){
   };
 
   Props.hall(g, rnd);
-  return { group:g, ambient:['room'], fog, background:bg, cameraPos:[0,1.75,5.5], lookAt:[0,1.25,-4.6] };
+  return { group:g, ambient:['room'], fog, background:bg, cameraPos:[0,1.75,5.5], lookAt:[0,1.25,-4.6],
+    walk:{ eye:1.72, b:{x0:-9.5,x1:9.5,z0:-8.8,z1:3.6},
+      col:[{x:0,z:-4.2,r:2.6},{x:-2.15,z:-2.6,r:0.8},{x:0,z:-2.4,r:0.9}] } };
 };
 
 /* ============================================================
@@ -4852,7 +4972,8 @@ function loadScene(id){
     camera.position.set(b.cameraPos[0],b.cameraPos[1],b.cameraPos[2]);
     controls.target.set(b.lookAt[0],b.lookAt[1],b.lookAt[2]);
     $('#st-scene').textContent = SCENES.find(s=>s.id===id).name;
-    curSceneId=id; BUILDING_SCENE=null; applyBreathTheme(id); updateFoundUI();
+    curSceneId=id; BUILDING_SCENE=null; trigDone.clear(); applyBreathTheme(id); updateFoundUI();
+    if(walkActive) camera.position.y=(b.walk&&b.walk.eye)?b.walk.eye:1.65;
     const isPiano = (id==='hall');
     setPianoMode(isPiano);
     if(isPiano){ pauseMusic(); } else { clearTimeout(Piano.guideTimer); Piano.guide.active=false; Piano.pauseAuto(true); if(!playing) $('#st-music').textContent='未播放'; }
@@ -5076,7 +5197,15 @@ function wireControls(){
   $('#btn-play').onclick=()=>{ if(currentTrackId) playTrack(currentTrackId); else playTrack('rainPiano'); };
   $('#btn-immerse').onclick=()=>{
     AudioSys.init(); AudioSys.resume();
-    if(immersive) document.exitPointerLock(); else renderer.domElement.requestPointerLock();
+    const target=!walkActive;
+    if(IS_COARSE){ enterWalk(target); return; }
+    if(target){
+      enterWalk(true);
+      try{ renderer.domElement.requestPointerLock(); }catch(err){}
+    }else{
+      enterWalk(false);
+      if(document.pointerLockElement) document.exitPointerLock();
+    }
   };
   $('#btn-breathe').onclick=()=>{ haptic(12); BR.active=!BR.active; BR.phase=''; $('#breath-layer').classList.toggle('show',BR.active); $('#btn-breathe').classList.toggle('on',BR.active); if(!BR.active){ BR.t=0; $('#breath-ring').style.transform='scale(1)'; } };
   $('#volume').oninput=e=>{ AudioSys.init(); AudioSys.setVolume(e.target.value/100); };
@@ -5485,20 +5614,22 @@ function loop(now){
   }
   updateHotspots(sceneTime);
   // 呼吸摆动（沉浸模式下的轻微起伏）
-  if(immersive){
-    camera.quaternion.setFromEuler(euler.set(pitch,yaw,0));
-    const mz=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
-    const mx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+  if(walkActive){
+    camera.quaternion.setFromEuler(euler.set(pitch,yaw,0,'YXZ'));
+    let mz=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0) - joy.y;
+    let mx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0) + joy.x;
+    const mag=Math.hypot(mx,mz); if(mag>1){ mx/=mag; mz/=mag; }
     vFwd.set(0,0,-1).applyQuaternion(camera.quaternion); vFwd.y=0; vFwd.normalize();
     vRight.set(1,0,0).applyQuaternion(camera.quaternion); vRight.y=0; vRight.normalize();
     const dir=new THREE.Vector3().addScaledVector(vFwd,mz).addScaledVector(vRight,mx);
     if(dir.lengthSq()>0) dir.normalize();
-    const speed=2.8;
-    vel.lerp(dir.multiplyScalar(speed), 1-Math.exp(-dt*8));
+    const speed=(keys.ShiftLeft||keys.ShiftRight)?4.6:2.9;
+    vel.lerp(dir.multiplyScalar(speed), 1-Math.exp(-dt*9));
     camera.position.addScaledVector(vel, dt);
-    const hx=camera.position.x,hz=camera.position.z; const rr=Math.hypot(hx,hz);
-    if(rr>40){ camera.position.x*=40/rr; camera.position.z*=40/rr; }
-    camera.position.y=1.6+Math.sin(t*1.7)*0.02;
+    walkConstrain();
+    const w=activeScene&&activeScene.walk;
+    camera.position.y=((w&&w.eye)?w.eye:1.65)+Math.sin(t*1.8)*0.015;
+    walkTriggers();
   }
   if(camFly){
     camFly.t += dt;
@@ -5508,7 +5639,7 @@ function loop(now){
     controls.target.lerpVectors(camFly.t0, camFly.t1, e);
     if(k>=1){ camFly=null; controls.enabled=true; }
   }
-  controls.update();
+  if(!walkActive) controls.update();
   updateBreath(dt);
   updateMed(dt);
   if(AudioSys.ctx) updateListener();
