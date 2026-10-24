@@ -114,6 +114,8 @@
   body.walking #cross{ display:block; }
   body.walking #hint{ display:none; }
   body.walking #joy{ bottom:calc(152px + env(safe-area-inset-bottom)); }
+  /* 漫游时收起钢琴面板，否则它会挡住场景中间的点击区域 */
+  body.walking #piano-panel{ display:none; }
   #hint{ position:fixed; left:50%; bottom:calc(180px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:25; font-size:12px; color:var(--txt-dim); padding:8px 16px; border-radius:20px; background:rgba(0,0,0,.4); opacity:0; transition:opacity .3s; pointer-events:none; letter-spacing:1px; }
   #hint.show{ opacity:1; }
   #scene-hint{ position:fixed; left:50%; top:calc(84px + env(safe-area-inset-top)); transform:translateX(-50%) translateY(-8px); z-index:23; font-size:12px; color:#cfe0ff; padding:8px 16px; border-radius:20px; background:rgba(8,14,30,.55); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid var(--line); opacity:0; transition:opacity .5s ease, transform .5s ease; pointer-events:none; letter-spacing:1px; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; }
@@ -575,7 +577,7 @@
 
   <div id="brand">
     <div class="t">心屿 <b>·</b> 见心安</div>
-    <div class="s">校园 VR 音乐疗愈系统 · V2.1</div>
+    <div class="s">校园 VR 音乐疗愈系统 · V2.2</div>
   </div>
 
   <div id="status" class="panel">场景 <b id="st-scene">—</b> · 音乐 <b id="st-music">未播放</b> · 发现 <b id="st-found">0</b></div>
@@ -2202,7 +2204,7 @@ function registerHotspot(g, x, y, z, o){
     marker.material.opacity = op;
     g.add(marker);
   }
-  const h = { hit, marker, title:o.title, text:o.text, act:o.act, ph:Math.random()*10, id:o.id||null, faint:!!o.faint, op, scene:BUILDING_SCENE };
+  const h = { hit, marker, title:o.title, text:o.text, act:o.act, ph:Math.random()*10, id:o.id||null, faint:!!o.faint, op, go:o.go||null, scene:BUILDING_SCENE };
   hotspots.push(h);
   if(h.id && h.scene){
     const arr = DISCOVER.ids[h.scene] || (DISCOVER.ids[h.scene] = []);
@@ -2220,9 +2222,11 @@ function updateHotspots(t){
     const pulse = 1 + Math.sin(t*2 + h.ph) * (h.faint ? 0.12 : 0.3);
     /* 走近时自动收敛：避免贴着光点时被一个巨大的圆环糊住视野 */
     const dist = camera.position.distanceTo(h.hit.position);
-    const near = Math.min(1, Math.max(0.1, (dist - 0.8) / 2.6));
-    h.marker.scale.setScalar(h.marker.userData.base * pulse * (0.45 + 0.55*near) * (hovered ? (h.faint ? 1.7 : 1.25) : 1));
-    h.marker.material.opacity = (hovered ? Math.min(1, baseOp + 0.55) : Math.max(0.05, baseOp + amp*Math.sin(t*2 + h.ph))) * near;
+    const near = Math.min(1, Math.max(0.06, (dist - 1.2) / 6));
+    /* 可走近的物件：走近后光点再收一档，别用大圆挡住物件本身 */
+    const shrink = h.go ? 0.7 : 1;
+    h.marker.scale.setScalar(h.marker.userData.base * pulse * (0.42 + 0.58*near) * shrink * (hovered ? (h.faint ? 1.7 : 1.25) : 1));
+    h.marker.material.opacity = (hovered ? Math.min(1, baseOp + 0.55) : Math.max(0.05, baseOp + amp*Math.sin(t*2 + h.ph))) * near * shrink;
   }
 }
 
@@ -2274,6 +2278,7 @@ function unlockReward(){
 function triggerHotspot(h){
   haptic(15, hotDownX, hotDownY);
   flashPulse();
+  if(h.go) approachSpot(h);
   if(h.text) showHealText(h.title || '', h.text, 7000);
   if(h.id && DISCOVER.add(h.id)){
     SFX.discover();
@@ -2512,6 +2517,44 @@ function enterWalk(on){
   }
 }
 
+/* ---- 走近：点击物件后镜头过渡到它跟前 ----
+   go 可以是数字（停留距离）或 { d:距离, look:[x,y,z] }；
+   轨道模式走 flyTo 飞行，漫游模式走 walkTo 步行，两者共用同一套落点计算。 */
+let walkTo = null;
+function approachSpot(h){
+  const w = activeScene && activeScene.walk;
+  const eye = (w && w.eye) ? w.eye : 1.66;
+  const o = h.go;
+  const d = (typeof o === 'number') ? o : ((o && o.d) || 2.2);
+  const look = (o && o.look) ? new THREE.Vector3(o.look[0], o.look[1], o.look[2]) : h.hit.position.clone();
+  const base = new THREE.Vector3(look.x, 0, look.z);
+  const cur  = new THREE.Vector3(camera.position.x, 0, camera.position.z);
+  const dir  = cur.clone().sub(base);
+  if(dir.lengthSq() < 1e-3){ dir.set(0,0,1); }
+  dir.normalize();
+  const p1 = base.clone().addScaledVector(dir, d); p1.y = eye;
+  /* 收进场景边界内，别走到墙外 */
+  if(w && w.b){
+    if(w.b.r){ const rr=Math.max(1, w.b.r-0.6); const dd=Math.hypot(p1.x,p1.z); if(dd>rr){ p1.x*=rr/dd; p1.z*=rr/dd; } }
+    if(w.b.x0!=null){ p1.x=Math.max(w.b.x0+0.5, Math.min(w.b.x1-0.5, p1.x)); p1.z=Math.max(w.b.z0+0.5, Math.min(w.b.z1-0.5, p1.z)); }
+  }
+  if(walkActive){
+    const dx=look.x-p1.x, dz=look.z-p1.z, dyv=look.y-(eye+0.06);
+    const yaw1 = Math.atan2(-dx, -dz);
+    const pit1 = Math.max(-0.34, Math.min(0.3, Math.atan2(dyv, Math.max(0.2, Math.hypot(dx,dz)))));
+    const dyaw = ((yaw1 - yaw + Math.PI*3) % (Math.PI*2)) - Math.PI;
+    walkTo = {
+      p0:camera.position.clone(), p1,
+      yaw0:yaw, dyaw, pit0:pitch, pit1,
+      t:0, dur: Math.max(0.55, Math.min(2.4, 0.36 + camera.position.distanceTo(p1)*0.2))
+    };
+    haptic(14);
+  }else{
+    flyTo([p1.x,p1.y+0.32,p1.z], [look.x,look.y,look.z], 1.5);
+  }
+}
+function cancelWalkTo(){ if(walkTo){ walkTo=null; } }
+
 function walkConstrain(){
   const w=activeScene&&activeScene.walk; if(!w) return;
   const p=camera.position;
@@ -2569,9 +2612,13 @@ renderer.domElement.addEventListener('pointerdown', e=>{
 });
 renderer.domElement.addEventListener('pointerup', e=>{
   lookDrag=null;
-  if(document.pointerLockElement) return;
   const dt=performance.now()-hotDownT;
-  if(Math.hypot(e.clientX-hotDownX, e.clientY-hotDownY) > 7 || dt > 500) return;
+  if(dt > 500) return;
+  /* 指针锁定时鼠标坐标不再变化：改用准星（屏幕中心）拾取，
+     这样「漫游 + 走到物件前 + 点一下」也能生效 */
+  const locked = !!document.pointerLockElement;
+  if(locked){ pickHotspot(innerWidth/2, innerHeight/2); return; }
+  if(Math.hypot(e.clientX-hotDownX, e.clientY-hotDownY) > 7) return;
   pickHotspot(e.clientX, e.clientY);
 });
 renderer.domElement.addEventListener('pointermove', e=>{
@@ -2581,7 +2628,11 @@ renderer.domElement.addEventListener('pointermove', e=>{
     lookDrag={x:e.clientX,y:e.clientY};
     return;
   }
-  if(document.pointerLockElement) return;
+  if(document.pointerLockElement){
+    hoveredHotspot = pickHotspotAt(innerWidth/2, innerHeight/2);
+    renderer.domElement.style.cursor = 'crosshair';
+    return;
+  }
   const h = pickHotspotAt(e.clientX, e.clientY);
   hoveredHotspot = h;
   renderer.domElement.style.cursor = h ? 'pointer' : 'grab';
@@ -3210,19 +3261,19 @@ SceneBuilders.forest = function(){
   registerHotspot(g, -11.5, 8.4, -12.5, { id:'forest.treehouse', r:2.8, scale:3.2, tint:0xffd9a0, title:'树屋',
     text:'顺着梯子上去，整片林子在脚下展开。这里没有别人，只有你和风。',
     act:()=>{ flyTo(VIEWS.tree.p, VIEWS.tree.t, 1.9); SFX.thud(); } });
-  registerHotspot(g, -11.2, 3.2, -10.4, { id:'forest.ladder', r:1.1, scale:1.5, tint:0xffe2b0, title:'绳梯', op:.4,
+  registerHotspot(g, -11.2, 3.2, -10.4, { id:'forest.ladder', r:1.1, scale:1.5, tint:0xffe2b0, go:{d:5.2, look:[-11.2,3.0,-10.4]}, title:'绳梯', op:.4,
     text:'一级一级往上，手里有东西可以握，心就稳了。' });
   registerHotspot(g, 12.6, 1.7, -6.4, { id:'forest.cabin', r:1.9, scale:2.2, tint:0xffc890, title:'木屋',
     text:'门没有锁。屋里留着一盏灯和一张空椅子——像有人知道你今晚会来。',
     act:()=>{ doorOpen=!doorOpen; cb.doorPivot.rotation.y = doorOpen ? -1.15 : 0; flyTo(VIEWS.porch.p, VIEWS.porch.t, 1.9); SFX.thud(); } });
-  registerHotspot(g, 3.4, 1.3, 1.2, { id:'forest.fire', r:1.2, scale:1.15, tint:0xff9a4a, title:'营火',
+  registerHotspot(g, 3.4, 1.3, 1.2, { id:'forest.fire', r:1.2, scale:1.15, tint:0xff9a4a, go:3.2, title:'营火',
     text:'火苗轻轻跳。人只要盯着火看一会儿，脑子里的噪音就会小下去。',
     act:()=>{ g.userData.fireT=sceneTime; SFX.water(); } });
-  registerHotspot(g, 0, 1.0, 9, { id:'forest.bridge', r:1.6, scale:1.9, tint:0xa8c8d8, op:.4, title:'石桥',
+  registerHotspot(g, 0, 1.0, 9, { id:'forest.bridge', r:1.6, scale:1.9, tint:0xa8c8d8, op:.4, go:3.0, title:'石桥',
     text:'桥下的水一直在走。你站着不动，它替你把时间带走一点。' });
   registerHotspot(g, -5.5, 0.4, 9, { id:'forest.stream', r:1.3, scale:1.5, tint:0x8fd8e8, op:.15, faint:true, title:'溪水',
     text:'水很浅，能看见底下的石头。有些事看清了，也就不那么可怕了。' });
-  registerHotspot(g, 0, 1.5, 18, { id:'forest.ground', r:1.6, scale:1.7, tint:0xcfe0ff, op:.15, faint:true, title:'回到空地',
+  registerHotspot(g, 4.2, 1.5, 17.0, { id:'forest.ground', r:1.05, scale:1.5, tint:0xcfe0ff, op:.15, faint:true, title:'回到空地',
     text:'退一步，整片林子又回到眼里。', act:()=>{ flyTo(VIEWS.ground.p, VIEWS.ground.t, 1.8); } });
 
   g.userData.fireT=-999; g.userData.ripple=[];
@@ -3376,7 +3427,7 @@ SceneBuilders.library = function(){
 
   // 互动热点：台灯开关 / 窗外听雨 / 翻开的书
   g.userData.lampLight=lampLight; g.userData.lampShade=lampShade; g.userData.lampOn=true; g.userData.rainBoost=-999; g.userData.bookT=-999;
-  registerHotspot(g, 1.4, 0.95, -3.2, { r:0.85, scale:1.4, tint:0xffe2a8, mid:'rgba(255,205,140,0.5)', title:'书灯', text:'灯已为你留亮。让暖光与雨声，陪你把紧绷慢慢放下。', act:()=>{ g.userData.lampOn = !g.userData.lampOn; } });
+  registerHotspot(g, 1.4, 0.95, -3.2, { r:0.85, scale:1.4, tint:0xffe2a8, mid:'rgba(255,205,140,0.5)', go:3.2, title:'书灯', text:'灯已为你留亮。让暖光与雨声，陪你把紧绷慢慢放下。', act:()=>{ g.userData.lampOn = !g.userData.lampOn; } });
   registerHotspot(g, 0, 5.0, -7.8, { r:1.4, scale:1.9, tint:0xa8c8ec, mid:'rgba(168,200,236,0.5)', title:'窗外的雨', text:'雨声渐密。让纷乱的思绪，随雨丝一起落下、归静。', act:()=>{ g.userData.rainBoost = sceneTime || 0; } });
   registerHotspot(g, 0, 0.98, -3.2, { r:0.7, scale:1.3, tint:0xf0e6c8, mid:'rgba(240,230,200,0.5)', title:'翻开的书', text:'把今天的凌乱，一页一页，轻轻合进书里。', act:()=>{ g.userData.bookT = sceneTime || 0; } });
 
@@ -3507,7 +3558,7 @@ SceneBuilders.campus = function(){
   g.userData.wish=wish; g.userData.wishT=-999;
   registerHotspot(g, 4, 7, -30, { r:2.6, scale:3.4, tint:0xcfe0ff, mid:'rgba(190,215,255,0.5)', title:'许愿流星', text:'向夜空许个愿吧。有些答案，交给时间去慢慢长出来。', act:()=>{ g.userData.wishT = sceneTime || 0; g.userData.wish.visible = true; } });
   registerHotspot(g, -20, 12.5, -17.6, { r:1.8, scale:3.8, tint:0xfff0c8, mid:'rgba(255,230,170,0.5)', title:'钟楼 · 夜色', text:'此刻无人在催你。时间，正为你放慢脚步。', act:()=>{ g.userData.clockFlash = sceneTime || 0; } });
-  registerHotspot(g, 7, 3.4, 1, { r:1.2, scale:1.8, tint:0xffe2a8, mid:'rgba(255,205,140,0.5)', title:'路灯 · 留一盏光', text:'夜再深，也总有一盏灯，愿意为你亮着。', act:()=>{ g.userData.streetBoost = { i:1, t0: sceneTime || 0 }; } });
+  registerHotspot(g, 7, 3.4, 1, { r:1.2, scale:1.8, tint:0xffe2a8, mid:'rgba(255,205,140,0.5)', go:{d:3.2, look:[7,2.4,1]}, title:'路灯 · 留一盏光', text:'夜再深，也总有一盏灯，愿意为你亮着。', act:()=>{ g.userData.streetBoost = { i:1, t0: sceneTime || 0 }; } });
 
   g.userData.update=(dt,t)=>{
     if(g.userData.stars) g.userData.stars.material.uniforms.uTime.value=t;
@@ -3643,7 +3694,7 @@ SceneBuilders.lake = function(){
 
   // 互动热点：湖心涟漪 / 流萤 / 月下倒影
   g.userData.ripples=[]; g.userData.flyBoost=-999; g.userData.moonT=-999;
-  registerHotspot(g, 1.5, 0.5, -7, { r:1.3, scale:1.9, tint:0xbfe6ff, mid:'rgba(180,225,255,0.5)', title:'湖心涟漪', text:'轻轻点向湖面，一圈圈涟漪荡开，心也随之安静下来。', act:()=>{
+  registerHotspot(g, 1.5, 0.5, -7, { r:1.3, scale:1.9, tint:0xbfe6ff, mid:'rgba(180,225,255,0.5)', go:3.4, title:'湖心涟漪', text:'轻轻点向湖面，一圈圈涟漪荡开，心也随之安静下来。', act:()=>{
     const ring=new THREE.Mesh(new THREE.RingGeometry(0.3,0.42,40), new THREE.MeshBasicMaterial({ color:'#bfe6ff', transparent:true, opacity:0.7, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide }));
     ring.rotation.x=-Math.PI/2; ring.position.set(1.5,0.06,-7); g.add(ring);
     g.userData.ripples.push({ mesh:ring, t0: sceneTime || 0 });
@@ -3747,7 +3798,7 @@ SceneBuilders.ginkgo = function(){
   g.userData.burstT=-999; g.userData.warmT=-999;
   registerHotspot(g, -3.2, 3.5, 2, { r:2.6, scale:3.2, tint:0xf7c86a, mid:'rgba(247,200,106,0.5)', title:'金叶飘落', text:'让烦恼像金叶一样，一片一片地放下。', act:()=>{ g.userData.burstT = sceneTime || 0; } });
   registerHotspot(g, 0, 7, -45, { r:3.5, scale:4.2, tint:0xfff2d0, mid:'rgba(255,230,170,0.5)', title:'暖阳', text:'阳光正暖，你值得被这样温柔地对待。', act:()=>{ g.userData.warmT = sceneTime || 0; } });
-  registerHotspot(g, -4.2, 1.1, 2, { r:1.3, scale:2.0, tint:0xffe2b0, mid:'rgba(255,210,140,0.5)', title:'长椅 · 歇一歇', text:'走累的时候，就坐下来。这里有一束暖光，专程为你留。', act:()=>{ g.userData.seatT = sceneTime || 0; } });
+  registerHotspot(g, -4.2, 1.1, 2, { r:1.3, scale:2.0, tint:0xffe2b0, mid:'rgba(255,210,140,0.5)', go:3.0, title:'长椅 · 歇一歇', text:'走累的时候，就坐下来。这里有一束暖光，专程为你留。', act:()=>{ g.userData.seatT = sceneTime || 0; } });
 
   g.userData.update=(dt,t)=>{
     const burst=(t - g.userData.burstT) < 2.0 ? 2.6 : 1;
@@ -4105,7 +4156,7 @@ SceneBuilders.hall = function(){
   g.userData.spot=spot; g.userData.spotlight=spotlight; g.userData.pianist=pianist; g.userData.flash=0;
 
   // 互动热点：琴盖开合 / 舞台追光
-  registerHotspot(g, 0, 1.78, -5.0, { r:1.2, scale:1.8, tint:0xd8e2ff, mid:'rgba(210,225,255,0.5)', title:'琴盖', text:'轻轻掀开琴盖，让声音与呼吸，都找到一个出口。', act:()=>{ g.userData.lidOpen = !g.userData.lidOpen; g.userData.lidT = sceneTime || 0; } });
+  registerHotspot(g, 0, 1.78, -5.0, { r:1.2, scale:1.8, tint:0xd8e2ff, mid:'rgba(210,225,255,0.5)', go:4.6, title:'琴盖', text:'轻轻掀开琴盖，让声音与呼吸，都找到一个出口。', act:()=>{ g.userData.lidOpen = !g.userData.lidOpen; g.userData.lidT = sceneTime || 0; } });
   registerHotspot(g, 0, 7.0, -3.0, { r:1.5, scale:2.6, tint:0xffe2b0, mid:'rgba(255,210,140,0.5)', title:'舞台追光', text:'这一刻，聚光灯只为你而亮。你本就是自己的主角。', act:()=>{ g.userData.flash = 1; } });
 
   g.userData.update=(dt,t)=>{
@@ -4215,7 +4266,7 @@ Props.library = function(g, rnd){
   g.add(crate);
   const note=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.2), paperMat);
   note.rotation.x=-Math.PI/2; note.rotation.z=0.5; note.position.set(-2.62,0.485,-2.03); g.add(note);
-  registerHotspot(g, -2.62, 0.5, -2.03, { id:'lib.note', faint:true, r:0.42, scale:0.55, tint:0xfff2c8, title:'箱底的一张纸',
+  registerHotspot(g, -2.62, 0.5, -2.03, { id:'lib.note', faint:true, r:0.42, scale:0.55, tint:0xfff2c8, go:2.4, title:'箱底的一张纸',
     text:'箱底压着一张折起的纸条，字迹是你自己的：「如果读到这里，说明你还在。那就好。」',
     act:()=>{ SFX.page(); g.userData.noteT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4243,7 +4294,7 @@ Props.campus = function(g, rnd){
   bench.add(put(box(0.08,0.44,0.44,metal),-0.86,0.22,0));
   bench.add(put(box(0.08,0.44,0.44,metal),0.86,0.22,0));
   g.add(bench);
-  registerHotspot(g, -5.0, 0.7, 2.6, { id:'cam.bench', r:0.8, scale:1.15, tint:0xffe2a8, title:'路边的长椅',
+  registerHotspot(g, -5.0, 0.7, 2.6, { id:'cam.bench', r:0.8, scale:1.15, tint:0xffe2a8, go:3.0, title:'路边的长椅',
     text:'木头还留着白天的余温。坐一会儿吧，没有人会催你。',
     act:()=>{ SFX.thud(); g.userData.benchT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4274,7 +4325,7 @@ Props.campus = function(g, rnd){
   const can=cyl(0.055,0.055,0.13,new THREE.MeshStandardMaterial({ color:'#f2a65a', roughness:.35, metalness:.5 }),14);
   can.position.set(8.6,0.62,-1.1); can.visible=false; g.add(can);
   g.add(vend);
-  registerHotspot(g, 8.6, 1.15, -1.05, { id:'cam.vend', r:0.75, scale:1.2, tint:0x7ec8ff, title:'深夜售货机',
+  registerHotspot(g, 8.6, 1.15, -1.05, { id:'cam.vend', r:0.75, scale:1.2, tint:0x7ec8ff, go:2.8, title:'深夜售货机',
     text:'投一枚硬币，掉出一罐热饮。深夜里，这点甜是允许的。',
     act:()=>{ SFX.thud(); g.userData.vendT=sceneTime; can.visible=true; } });
   ticks.push((dt,t)=>{
@@ -4299,7 +4350,7 @@ Props.campus = function(g, rnd){
   const seat=box(0.2,0.05,0.1,new THREE.MeshStandardMaterial({ color:'#22242c', roughness:.8 })); seat.position.set(0.3,0.78,0); bike.add(seat);
   const bars=box(0.05,0.05,0.42,metal); bars.position.set(-0.5,0.78,0); bike.add(bars);
   g.add(bike);
-  registerHotspot(g, -5.4, 0.75, -1.2, { id:'cam.bike', r:0.7, scale:1.1, tint:0xa8d8ff, title:'没上锁的自行车',
+  registerHotspot(g, -5.4, 0.75, -1.2, { id:'cam.bike', r:0.7, scale:1.1, tint:0xa8d8ff, go:2.8, title:'没上锁的自行车',
     text:'车没上锁，好像随时可以骑走。哪怕只是想想去哪里，胸口也松了一点。',
     act:()=>{ SFX.bell(); g.userData.bikeT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4320,7 +4371,7 @@ Props.campus = function(g, rnd){
   const e1=sph(0.018,eyeMat,6), e2=sph(0.018,eyeMat,6);
   e1.position.set(0.31,0.13,0.045); e2.position.set(0.31,0.13,-0.045); cat.add(e1); cat.add(e2);
   g.add(cat);
-  registerHotspot(g, -3.4, 0.26, 1.6, { id:'cam.cat', faint:true, r:0.46, scale:0.6, tint:0xd8f0b0, title:'草丛里有什么',
+  registerHotspot(g, -3.4, 0.26, 1.6, { id:'cam.cat', faint:true, r:0.46, scale:0.6, tint:0xd8f0b0, go:2.3, title:'草丛里有什么',
     text:'一只猫蜷在草里，睁眼看你一眼，又把头埋回尾巴。原来深夜也有人（猫）陪着你。',
     act:()=>{ SFX.meow(); g.userData.catT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4331,6 +4382,8 @@ Props.campus = function(g, rnd){
   });
 
   Landmark.pavilion(g, -8.6, -6.6, lmMats());
+  registerHotspot(g, -8.6, 2.7, -6.6, { r:2.2, scale:2.6, tint:0xcfe0ff, title:'六角凉亭', go:6.4,
+    text:'亭子空着，风从六个方向穿过去。坐下歇一会儿吧，没有人会催你。', act:()=>{ SFX.chime(); } });
   mountExtra('campus', g, ticks);
   g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
 };
@@ -4352,7 +4405,7 @@ Props.lake = function(g, rnd){
   const shackle=new THREE.Mesh(new THREE.TorusGeometry(0.035,0.009,6,12), new THREE.MeshStandardMaterial({ color:'#d8b45e', roughness:.35, metalness:.8 }));
   shackle.position.y=0.055; lock.add(shackle);
   g.add(lock);
-  registerHotspot(g, -2.56, 0.82, 1.55, { id:'lake.lock', r:0.4, scale:0.62, tint:0xffe2a8, title:'栏杆上的小锁',
+  registerHotspot(g, -2.56, 0.82, 1.55, { id:'lake.lock', r:0.4, scale:0.62, tint:0xffe2a8, go:2.8, title:'栏杆上的小锁',
     text:'锁面刻着两个字母，已经磨得看不清了。有些约定不必被记住，它发生过就够了。',
     act:()=>{ SFX.chime(); g.userData.lockT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4373,7 +4426,7 @@ Props.lake = function(g, rnd){
   const boatGlow=makeGlowSprite(glowTex('#ffd9a0','rgba(255,190,120,0.4)'), -6.6,0.5,-8.2, 1.5);
   boatGlow.material.opacity=0.5; g.add(boatGlow);
   g.add(boat);
-  registerHotspot(g, -6.6, 0.55, -8.2, { id:'lake.boat', r:0.95, scale:1.35, tint:0xffd9a0, title:'岸边的小舟',
+  registerHotspot(g, -6.6, 0.55, -8.2, { id:'lake.boat', r:0.95, scale:1.35, tint:0xffd9a0, go:3.0, title:'岸边的小舟',
     text:'船绳松松系在木桩上，随水轻轻晃。你也可以什么都不做，就这样晃一会儿。',
     act:()=>{ SFX.water(); g.userData.boatT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4430,6 +4483,8 @@ Props.lake = function(g, rnd){
   bm.roof.emissive.copy(bm.roof.color).multiplyScalar(0.4);
   bm.bark.emissive.copy(bm.bark.color).multiplyScalar(0.32);
   Landmark.boathouse(g, 12.8, -8.6, bm);
+  registerHotspot(g, 12.8, 2.6, -8.6, { r:2.4, scale:2.8, tint:0xffd9a0, title:'水榭 · 栈桥', go:7.0,
+    text:'水榭的窗里还亮着灯。栈桥一直伸到湖心，你可以走到尽头，什么也不做。', act:()=>{ SFX.water(); } });
   mountExtra('lake', g, ticks);
   g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
 };
@@ -4455,7 +4510,7 @@ Props.ginkgo = function(g, rnd){
   }
   const clapper=sph(0.032,wood,8); clapper.position.set(0,-0.28,0); tubes.add(clapper);
   g.add(stand);
-  registerHotspot(g, 3.5, 2.15, 7.9, { id:'gin.chime', r:0.55, scale:0.9, tint:0xffe2a8, title:'树下的风铃',
+  registerHotspot(g, 3.5, 2.15, 7.9, { id:'gin.chime', r:0.55, scale:0.9, tint:0xffe2a8, go:3.0, title:'树下的风铃',
     text:'风一吹，它就替你说了一句「没关系」。有些话，不用自己讲出口。',
     act:()=>{ SFX.chime(); g.userData.chimeT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4473,7 +4528,7 @@ Props.ginkgo = function(g, rnd){
   g.add(post);
   const letter=new THREE.Mesh(new THREE.PlaneGeometry(0.18,0.11), new THREE.MeshStandardMaterial({ color:'#f6efdc', roughness:.6, side:THREE.DoubleSide }));
   letter.position.set(-4.6,1.02,9.63); letter.rotation.x=-0.4; letter.visible=false; g.add(letter);
-  registerHotspot(g, -4.6, 1.05, 9.6, { id:'gin.post', r:0.55, scale:0.9, tint:0xf2c48a, title:'老邮筒',
+  registerHotspot(g, -4.6, 1.05, 9.6, { id:'gin.post', r:0.55, scale:0.9, tint:0xf2c48a, go:2.8, title:'老邮筒',
     text:'你写了一张没有地址的明信片，投进去。有些话不必寄到谁手里，写下来就已经轻了一半。',
     act:()=>{ SFX.page(); g.userData.postT=sceneTime; letter.visible=true; } });
   ticks.push((dt,t)=>{
@@ -4494,7 +4549,7 @@ Props.ginkgo = function(g, rnd){
     s.scale.y=0.45; pile.add(s);
   }
   g.add(pile);
-  registerHotspot(g, 2.5, 0.25, 7.6, { id:'gin.pile', r:0.5, scale:0.85, tint:0xf7c86a, title:'一堆落叶',
+  registerHotspot(g, 2.5, 0.25, 7.6, { id:'gin.pile', r:0.5, scale:0.85, tint:0xf7c86a, go:2.6, title:'一堆落叶',
     text:'踩上去，沙的一声。你忽然想起小时候，专门挑叶子厚的地方走。',
     act:()=>{ SFX.noise(0.35, 2400, 0.8, 0.08, 'highpass'); g.userData.burstT=sceneTime; } });
 
@@ -4511,7 +4566,7 @@ Props.ginkgo = function(g, rnd){
   const carve=new THREE.Mesh(new THREE.PlaneGeometry(0.58,0.3), new THREE.MeshBasicMaterial({ map:carveTex, transparent:true }));
   carve.position.set(0,1.52,0.02); sign.add(carve);
   g.add(sign);
-  registerHotspot(g, -3.6, 1.55, 10.6, { id:'gin.sign', faint:true, r:0.46, scale:0.6, tint:0xffe2b0, title:'褪色的木牌',
+  registerHotspot(g, -3.6, 1.55, 10.6, { id:'gin.sign', faint:true, r:0.46, scale:0.6, tint:0xffe2b0, go:2.8, title:'褪色的木牌',
     text:'木牌上刻着「2019 · 秋」。那年你第一次一个人走完这条路，以为走不过去的，后来都过去了。',
     act:()=>{ SFX.thud(); g.userData.signT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4526,6 +4581,8 @@ Props.ginkgo = function(g, rnd){
   gm.roof.color.set('#b5613f'); gm.roof.emissive.copy(gm.roof.color).multiplyScalar(0.32);
   gm.bark.color.set('#7a5a3e'); gm.bark.emissive.copy(gm.bark.color).multiplyScalar(0.3);
   Landmark.treehut(g, -5.8, 3.2, gm);
+  registerHotspot(g, -5.8, 3.4, 3.2, { r:2.0, scale:2.4, tint:0xf7c86a, title:'林间树屋', go:4.6,
+    text:'路旁的树上，有人钉了一块平台。梯子还在，踩着上去，风里都是银杏的味道。', act:()=>{ SFX.rustle(); } });
   mountExtra('ginkgo', g, ticks);
   g.userData.propTick=(dt,t)=>{ for(const f of ticks) f(dt,t); };
 };
@@ -4553,7 +4610,7 @@ Props.hall = function(g, rnd){
   const sheet=new THREE.Mesh(new THREE.PlaneGeometry(0.56,0.4), new THREE.MeshStandardMaterial({ map:sheetTex, color:'#cfc7b4', roughness:.9, metalness:0 }));
   sheet.position.set(0,0,0.016); board.add(sheet);
   g.add(stand);
-  registerHotspot(g, -2.15, 1.44, -2.5, { id:'hall.stand', r:0.5, scale:0.85, tint:0xfff0d0, title:'谱架上的乐谱',
+  registerHotspot(g, -2.15, 1.44, -2.5, { id:'hall.stand', r:0.5, scale:0.85, tint:0xfff0d0, go:2.6, title:'谱架上的乐谱',
     text:'页角被翻得起了毛边。你数了数，同一行被圈过很多次——原来重复也是一种认真。',
     act:()=>{ SFX.page(); g.userData.standT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4581,7 +4638,7 @@ Props.hall = function(g, rnd){
     petal.scale.y=0.75; vase.add(petal); flowers.push(petal);
   }
   g.add(vase);
-  registerHotspot(g, 3.1, 0.78, -2.0, { id:'hall.vase', r:0.55, scale:0.9, tint:0xf0b0c0, title:'舞台边的花',
+  registerHotspot(g, 3.1, 0.78, -2.0, { id:'hall.vase', r:0.55, scale:0.9, tint:0xf0b0c0, go:2.8, title:'舞台边的花',
     text:'不知道是谁放的，也没人拿走。演出开始前，它们在这里安静地开。',
     act:()=>{ SFX.chime(); g.userData.vaseT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4602,7 +4659,7 @@ Props.hall = function(g, rnd){
   g.add(stool);
   const program=new THREE.Mesh(new THREE.PlaneGeometry(0.26,0.34), new THREE.MeshStandardMaterial({ color:'#f2ead6', roughness:.7, side:THREE.DoubleSide }));
   program.rotation.x=-Math.PI/2; program.rotation.z=0.28; program.position.set(-4.9,0.46,-1.7); g.add(program);
-  registerHotspot(g, -4.9, 0.5, -1.7, { id:'hall.program', faint:true, r:0.44, scale:0.58, tint:0xfff2c8, title:'琴凳上的节目单',
+  registerHotspot(g, -4.9, 0.5, -1.7, { id:'hall.program', faint:true, r:0.44, scale:0.58, tint:0xfff2c8, go:2.8, title:'琴凳上的节目单',
     text:'节目单背面有一行铅笔字：「今天手很抖，但我还是弹完了。」落款是三年前。',
     act:()=>{ SFX.page(); g.userData.progT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -4972,7 +5029,7 @@ function loadScene(id){
     camera.position.set(b.cameraPos[0],b.cameraPos[1],b.cameraPos[2]);
     controls.target.set(b.lookAt[0],b.lookAt[1],b.lookAt[2]);
     $('#st-scene').textContent = SCENES.find(s=>s.id===id).name;
-    curSceneId=id; BUILDING_SCENE=null; trigDone.clear(); applyBreathTheme(id); updateFoundUI();
+    curSceneId=id; BUILDING_SCENE=null; trigDone.clear(); walkTo=null; camFly=null; applyBreathTheme(id); updateFoundUI();
     if(walkActive) camera.position.y=(b.walk&&b.walk.eye)?b.walk.eye:1.65;
     const isPiano = (id==='hall');
     setPianoMode(isPiano);
@@ -4981,7 +5038,7 @@ function loadScene(id){
     if(id==='hall'){ if(moodPending){ moodPending=null; } showGuidance(id); }
     else if(moodPending && moodPending.scene===id){ showMoodToast(moodPending); moodPending=null; }
     else showGuidance(id);
-    showSceneHint(isPiano ? (IS_COARSE ? '轻点琴键即可演奏 · 建议横屏' : '点钢琴旁的光点 · 也可细看谱架与舞台') : (TAP_WORD+'闪烁的光点，或细看身边的陈设'), 5500);
+    showSceneHint(isPiano ? (IS_COARSE ? '轻点琴键即可演奏 · 建议横屏' : '点钢琴旁的光点 · 也可细看谱架与舞台') : (TAP_WORD+'闪烁的光点：明亮的多半能走近，暗淡的要靠近才看得清'), 5500);
   }, 380);
 }
 
@@ -5615,6 +5672,29 @@ function loop(now){
   updateHotspots(sceneTime);
   // 呼吸摆动（沉浸模式下的轻微起伏）
   if(walkActive){
+    /* 走近过渡中：用户一按方向键/摇杆就交还控制权 */
+    if(walkTo){
+      const busy = Math.hypot(joy.x,joy.y)>0.18 ||
+        keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.ArrowUp||keys.ArrowDown||keys.ArrowLeft||keys.ArrowRight;
+      if(busy) walkTo=null;
+    }
+    if(walkTo){
+      walkTo.t += dt;
+      const k=Math.min(1, walkTo.t/walkTo.dur);
+      const e=k<0.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+      camera.position.lerpVectors(walkTo.p0, walkTo.p1, e);
+      yaw = walkTo.yaw0 + walkTo.dyaw*e;
+      pitch = walkTo.pit0 + (walkTo.pit1-walkTo.pit0)*e;
+      camera.position.y=((activeScene.walk&&activeScene.walk.eye)?activeScene.walk.eye:1.65)+Math.sin(t*1.8)*0.015;
+      camera.quaternion.setFromEuler(euler.set(pitch,yaw,0,'YXZ'));
+      vel.set(0,0,0);
+      if(k>=1){
+        walkTo=null;
+        const w=activeScene.walk;
+        if(w&&w.trig){ for(const tr of w.trig){ const dd=Math.hypot(camera.position.x-tr.x, camera.position.z-tr.z); if(dd<tr.r*1.3) trigDone.add(curSceneId+':'+tr.id); } }
+      }
+      /* 过渡中不再叠加行走与触发，避免越走越远 */
+    }else{
     camera.quaternion.setFromEuler(euler.set(pitch,yaw,0,'YXZ'));
     let mz=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0) - joy.y;
     let mx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0) + joy.x;
@@ -5630,6 +5710,7 @@ function loop(now){
     const w=activeScene&&activeScene.walk;
     camera.position.y=((w&&w.eye)?w.eye:1.65)+Math.sin(t*1.8)*0.015;
     walkTriggers();
+    }
   }
   if(camFly){
     camFly.t += dt;
