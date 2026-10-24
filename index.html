@@ -5038,7 +5038,7 @@ function loadScene(id){
     if(id==='hall'){ if(moodPending){ moodPending=null; } showGuidance(id); }
     else if(moodPending && moodPending.scene===id){ showMoodToast(moodPending); moodPending=null; }
     else showGuidance(id);
-    showSceneHint(isPiano ? (IS_COARSE ? '轻点琴键即可演奏 · 建议横屏' : '点钢琴旁的光点 · 也可细看谱架与舞台') : (TAP_WORD+'闪烁的光点：明亮的多半能走近，暗淡的要靠近才看得清'), 5500);
+    showSceneHint(isPiano ? (IS_COARSE ? '轻点琴键即可演奏 · 建议横屏' : '点钢琴旁的光点 · 也可细看谱架与舞台') : (TAP_WORD+'闪烁的光点：明亮的多半能走近，点它就直接过去'), 5500);
   }, 380);
 }
 
@@ -5275,11 +5275,11 @@ function wireControls(){
   };
 
   $('#btn-start').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); resetMood(); openLayer('#mood-layer'); };
-  $('#btn-skip').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); playTrack('rainPiano'); showGuidance('library'); showSceneHint(TAP_WORD+'场景中闪烁的光点，体验互动', 5500); };
+  $('#btn-skip').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); playTrack('rainPiano'); showGuidance('library'); showSceneHint(TAP_WORD+'闪烁的光点：明亮的多半能走近，点它就直接过去', 5500); };
 
   $('#btn-mood').onclick=()=>{ resetMood(); openLayer('#mood-layer'); };
   $('#mood-close').onclick=()=>closeLayer('#mood-layer');
-  $('#mood-skip').onclick=()=>{ closeLayer('#mood-layer'); playTrack('rainPiano'); showGuidance(curSceneId); showSceneHint(TAP_WORD+'场景中闪烁的光点，体验互动', 5500); };
+  $('#mood-skip').onclick=()=>{ closeLayer('#mood-layer'); playTrack('rainPiano'); showGuidance(curSceneId); showSceneHint(TAP_WORD+'闪烁的光点：明亮的多半能走近，点它就直接过去', 5500); };
   $('#mood-go').onclick=()=>applyMood();
 
   $('#btn-meditate').onclick=()=>{ $('#med-pid').value=getPid(); openLayer('#med-layer'); };
