@@ -484,6 +484,7 @@
   .ls-inp:focus{ border-color:rgba(126,200,255,.5); background:rgba(126,200,255,.07); }
   .ls-hint{ margin:8px 0 2px; font-size:11px; line-height:1.7; color:#6b7a94; }
   .lib-row .hl{ font-style:normal; color:#ffd9a0; background:rgba(255,217,160,.16); border-radius:3px; padding:0 1px; }
+  .lib-row .lmatch{ margin-left:7px; font-size:10.5px; color:#7ec8ff; opacity:.85; }
 
   /* ---- 曲目详情 ---- */
   .li-hero{ padding:2px 0 10px; }
@@ -6982,12 +6983,20 @@ const Lib = {
       const act = t.id === curId;
       const btn = act && st === 'loading' ? '<i class="sp"></i>'
         : (act && st === 'playing' ? LIB_ICON.pause : LIB_ICON.play);
+      /* 关键词只在隐藏字段（近义词、说明）里命中时，标一句，免得看着莫名其妙 */
+      const metaTxt = this.metaLine(t);
+      let metaHtml = this.hl(metaTxt);
+      if(this.q){
+        const shown = [t.name, t.orig, metaTxt, t.mood, t.key, t.composer].join(' ').toLowerCase();
+        const miss = this.q.toLowerCase().split(/\s+/).filter(Boolean).some(w=> shown.indexOf(w) < 0);
+        if(miss) metaHtml += '<span class="lmatch">匹配「' + this.q + '」</span>';
+      }
       h += '<div class="lib-row' + (act ? ' active' : '') + (act && st === 'playing' ? ' playing' : '') + '" data-id="' + t.id + '">'
         + '<div class="idx">' + num + '</div>'
         + '<button class="pbtn" type="button" aria-label="播放 ' + t.name + '">' + btn + '</button>'
         + '<div class="lmain"><div class="lnm"><span class="playing-dots"><i></i><i></i><i></i></span>' + this.hl(t.name)
         + '<span class="lorig">' + (t.orig ? ' · ' + this.hl(t.orig) : '') + '</span></div>'
-        + '<div class="lmeta">' + this.hl(this.metaLine(t)) + '</div></div>'
+        + '<div class="lmeta">' + metaHtml + '</div></div>'
         + '<div class="ltag">' + this.hl(t.mood) + '</div>'
         + '<div class="lact">'
         + '<button class="lfav' + (this.isFav(t.id) ? ' on' : '') + '" type="button" aria-pressed="' + (this.isFav(t.id) ? 'true' : 'false') + '" aria-label="' + (this.isFav(t.id) ? '取消收藏 ' : '收藏 ') + t.name + '">' + LIB_ICON.heart + '</button>'
