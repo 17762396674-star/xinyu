@@ -112,12 +112,9 @@
   #joy .joy-cap{ position:absolute; left:0; right:0; bottom:-18px; text-align:center; font-size:10px; letter-spacing:2px; color:var(--txt-dim); }
   #cross{ position:fixed; left:50%; top:50%; width:7px; height:7px; margin:-3.5px 0 0 -3.5px; border-radius:50%; background:rgba(255,255,255,.9); box-shadow:0 0 10px rgba(126,200,255,.85); z-index:26; display:none; pointer-events:none; }
   body.walking #cross{ display:block; }
-  body.walking #hint{ display:none; }
-  body.walking #joy{ bottom:calc(152px + env(safe-area-inset-bottom)); }
+  body.walking #joy{ bottom:calc(var(--ctl-h, 120px) + 28px + env(safe-area-inset-bottom)); }
   /* 漫游时收起钢琴面板，否则它会挡住场景中间的点击区域 */
   body.walking #piano-panel{ display:none; }
-  #hint{ position:fixed; left:50%; bottom:calc(180px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:25; font-size:12px; color:var(--txt-dim); padding:8px 16px; border-radius:20px; background:rgba(0,0,0,.4); opacity:0; transition:opacity .3s; pointer-events:none; letter-spacing:1px; }
-  #hint.show{ opacity:1; }
   #scene-hint{ position:fixed; left:50%; top:calc(84px + env(safe-area-inset-top)); transform:translateX(-50%) translateY(-8px); z-index:23; font-size:12px; color:#cfe0ff; padding:8px 16px; border-radius:20px; background:rgba(8,14,30,.55); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid var(--line); opacity:0; transition:opacity .5s ease, transform .5s ease; pointer-events:none; letter-spacing:1px; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; }
   #scene-hint.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -244,13 +241,32 @@
   .med-export:hover{ border-color:rgba(126,200,255,.45); color:var(--txt); }
 
   @media (max-width:760px){
-    .card{ width:96px; height:72px; }
-    #console{ gap:8px; }
-    .btn span.lbl{ display:none; }
-    .mtrack{ min-width:auto; padding:8px 10px; }
+    /* 窄屏统一成「单行横滑」：原来卡片与曲目各自换行，行高参差、第二行只落一个，
+       看着像没对齐。横滑一行反而稳定，也不占场景高度。 */
+    #console{ gap:8px; width:100vw; padding:0 8px; }
+    #scene-row, #music-row{
+      flex-wrap:nowrap; justify-content:flex-start; gap:6px;
+      overflow-x:auto; overflow-y:hidden; padding-bottom:2px;
+      scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;
+    }
+    #scene-row::-webkit-scrollbar, #music-row::-webkit-scrollbar{ display:none; width:0; height:0; }
+    /* 横滑时右边缘淡出一点，提示「后面还有」；滑到底就取消淡出 */
+    #scene-row.can-scroll:not(.at-end), #music-row.can-scroll:not(.at-end){
+      -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 26px),transparent 100%);
+      mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 26px),transparent 100%);
+    }
+    #scene-row, #music-row{ scroll-snap-type:x proximity; }
+    #scene-row > *, #music-row > *{ scroll-snap-align:start; }
+    .card{ flex:0 0 auto; width:92px; height:66px; }
+    .card .ck .nm{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .card .ck .ds{ font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mtrack{ min-width:auto; padding:8px 10px; flex:0 0 auto; }
     #brand .t{ font-size:18px; }
     #brand .s{ display:none; }
-    #status{ top:16px; right:14px; font-size:12px; padding:7px 11px; max-width:58vw; }
+    /* 状态栏：窄屏只留「场景 + 发现」，音乐名在播放键和迷你条里已经有；
+       「0/24」单独出现看不出是什么，所以「发现」两个字保留 */
+    #status{ top:16px; right:14px; font-size:12px; padding:7px 11px; max-width:58vw; white-space:nowrap; }
+    #status .sl, #status .s2{ display:none; }
   }
 
   /* 首页响应式：防止文字换行堆叠 / 标签挤压 */
@@ -776,11 +792,10 @@
       scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch;
     }
     #scene-row::-webkit-scrollbar, #music-row::-webkit-scrollbar{ display:none; width:0; height:0; }
-    .row.ctl{ flex-wrap:nowrap; gap:6px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch; }
-    .row.ctl::-webkit-scrollbar{ display:none; width:0; height:0; }
-    .card{ flex:0 0 auto; width:58px; height:40px; border-radius:9px; }
-    .card .ck{ padding:4px 4px; }
-    .card .ck .nm{ font-size:9.5px; line-height:1.1; letter-spacing:0; word-break:break-word; overflow-wrap:anywhere; }
+    .row.ctl{ flex-wrap:wrap; justify-content:center; gap:6px; overflow:visible; }
+    .card{ flex:0 0 auto; width:78px; height:46px; border-radius:9px; }
+    .card .ck{ padding:4px 6px; }
+    .card .ck .nm{ font-size:9.5px; line-height:1.15; letter-spacing:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .card .ck .ds{ display:none; }
     .card svg{ top:4px; left:4px; width:10px; height:10px; }
     .mtrack{ flex:0 0 auto; padding:4px 8px; border-radius:9px; gap:5px; }
@@ -788,10 +803,15 @@
     .mtrack .ico svg{ width:10px; height:10px; }
     .mtrack .meta .nm{ font-size:10px; }
     .mtrack .meta .tg{ display:none; }
-    .btn{ height:30px; min-height:30px; padding:0 9px; font-size:10px; border-radius:9px; gap:4px; }
-    .btn svg{ width:12px; height:12px; }
-    .vol{ height:30px; padding:0 8px; gap:5px; border-radius:9px; }
-    .vol input[type=range]{ width:64px; }
+    /* 按钮保留文字：纯图标在手机上看不出「呼吸引导」是做什么的。
+       用 data-s 换成两字短名，六个按钮刚好一排放得下。
+       只作用于控制台：弹窗里的按钮要保持 42px 触控高度。 */
+    #console .btn{ height:32px; min-height:32px; padding:0 8px; font-size:10px; border-radius:9px; gap:4px; }
+    #console .btn .lbl{ font-size:0; }
+    #console .btn .lbl::after{ content:attr(data-s); font-size:9.5px; letter-spacing:0; }
+    #console .btn svg{ width:12px; height:12px; }
+    .vol{ height:32px; padding:0 8px; gap:5px; border-radius:9px; }
+    .vol input[type=range]{ width:96px; }
 
     /* 开始页 */
     #start{ padding:calc(18px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); }
@@ -911,9 +931,8 @@
     <div class="s">校园 VR 音乐疗愈系统 · V2.2</div>
   </div>
 
-  <div id="status" class="panel">场景 <b id="st-scene">—</b> · 音乐 <b id="st-music">未播放</b> · 发现 <b id="st-found">0</b></div>
+  <div id="status" class="panel"><span class="s1"><span class="sl">场景 </span><b id="st-scene">—</b></span><span class="s2"> · <span class="sl">音乐 </span><b id="st-music">未播放</b></span><span class="s3"> · 发现 <b id="st-found">0</b></span></div>
 
-  <div id="hint">W A S D 移动 · 鼠标环视 · Esc 退出漫游</div>
   <div id="scene-hint"></div>
 
   <div id="breath-layer">
@@ -931,13 +950,13 @@
     <div class="row" id="scene-row"></div>
     <div class="row" id="music-row"></div>
     <div class="row ctl">
-      <button class="btn primary" id="btn-play" title="播放/暂停"><svg viewBox="0 0 24 24" fill="currentColor"><path id="ic-play" d="M8 5v14l11-7z"/><path id="ic-pause" d="M6 5h4v14H6zM14 5h4v14h-4z" style="display:none"/></svg><span class="lbl" id="btn-play-lbl">播放</span></button>
-      <button class="btn" id="btn-immerse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4"/></svg><span class="lbl">漫游</span></button>
-      <button class="btn" id="btn-breathe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span class="lbl">呼吸引导</span></button>
-      <button class="btn" id="btn-mood"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21C7 16.5 3 13 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 13 17 16.5 12 21z"/></svg><span class="lbl">情绪疗愈</span></button>
-      <button class="btn" id="btn-meditate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="lbl">冥想计时</span></button>
-      <button class="btn" id="btn-library" title="音乐库 · 180 首疗愈 + 330 首古典"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V6.5l10-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span class="lbl">音乐库</span></button>
-      <div class="vol" title="音量"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg><input type="range" id="volume" min="0" max="100" value="80" /></div>
+      <button class="btn primary" id="btn-play" title="播放 / 暂停" aria-label="播放或暂停"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path id="ic-play" d="M8 5v14l11-7z"/><path id="ic-pause" d="M6 5h4v14H6zM14 5h4v14h-4z" style="display:none"/></svg><span class="lbl" id="btn-play-lbl" data-s="播放">播放</span></button>
+      <button class="btn" id="btn-immerse" title="进入 / 退出漫游" aria-label="进入或退出漫游"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4"/></svg><span class="lbl" data-s="漫游">漫游</span></button>
+      <button class="btn" id="btn-breathe" title="呼吸引导" aria-label="呼吸引导"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span class="lbl" data-s="呼吸">呼吸引导</span></button>
+      <button class="btn" id="btn-mood" title="情绪疗愈" aria-label="情绪疗愈"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21C7 16.5 3 13 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 13 17 16.5 12 21z"/></svg><span class="lbl" data-s="情绪">情绪疗愈</span></button>
+      <button class="btn" id="btn-meditate" title="冥想计时" aria-label="冥想计时"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="lbl" id="btn-med-lbl" data-s="冥想">冥想计时</span></button>
+      <button class="btn" id="btn-library" title="音乐库 · 180 首疗愈 + 330 首古典" aria-label="音乐库"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V6.5l10-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span class="lbl" data-s="曲库">音乐库</span></button>
+      <div class="vol" title="音量"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg><input type="range" id="volume" min="0" max="100" value="80" aria-label="音量" /></div>
     </div>
   </div>
 
@@ -970,13 +989,13 @@
   </div>
 
   <div id="mood-layer" class="layer">
-    <div class="dialog panel">
-      <div class="dlg-head"><span class="dlg-title">情绪觉察</span><button class="dlg-close" id="mood-close">✕</button></div>
+    <div class="dialog panel" role="dialog" aria-modal="true" aria-labelledby="mood-title" tabindex="-1">
+      <div class="dlg-head"><span class="dlg-title" id="mood-title">情绪觉察</span><button class="dlg-close" id="mood-close" aria-label="关闭情绪觉察">✕</button></div>
       <p class="dlg-sub">在开始疗愈前，先停一下，觉察此刻的情绪。选一个最接近的状态，我会为你推荐合适的场景与音乐，并陪你一起放松下来。</p>
-      <div class="mood-grid" id="mood-grid"></div>
+      <div class="mood-grid" id="mood-grid" role="group" aria-label="选择此刻的情绪"></div>
       <div class="mood-rate">
-        <span class="rl">情绪强度</span>
-        <input type="range" id="mood-intensity" min="1" max="5" value="3">
+        <span class="rl" id="mood-intensity-lbl-cap">情绪强度</span>
+        <input type="range" id="mood-intensity" min="1" max="5" value="3" aria-label="情绪强度" aria-describedby="mood-intensity-lbl">
         <span class="rv" id="mood-intensity-lbl">中等</span>
       </div>
       <div class="dlg-actions"><button class="btn primary" id="mood-go">开始疗愈</button><button class="btn ghost" id="mood-skip">随便逛逛</button></div>
@@ -984,8 +1003,8 @@
   </div>
 
   <div id="med-layer" class="layer">
-    <div class="dialog panel">
-      <div class="dlg-head"><span class="dlg-title">冥想计时</span><button class="dlg-close" id="med-close">✕</button></div>
+    <div class="dialog panel" role="dialog" aria-modal="true" aria-labelledby="med-title" tabindex="-1">
+      <div class="dlg-head"><span class="dlg-title" id="med-title">冥想计时</span><button class="dlg-close" id="med-close" aria-label="关闭冥想计时">✕</button></div>
       <p class="dlg-sub">留一段只属于自己的安静时间。期间可开启呼吸引导或闭眼聆听，让身心慢慢沉静。</p>
       <div class="med-dur" id="med-dur"></div>
       <div class="med-clock" id="med-clock">
@@ -2865,9 +2884,6 @@ function flashPulse(){
   setTimeout(()=> el.remove(), 520);
 }
 const TAP_WORD = IS_COARSE ? '轻点' : '点击';
-if(IS_COARSE){
-  $('#hint').textContent = '单指拖动环视 · 双指缩放 · 轻点光点互动';
-}
 renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
 document.addEventListener('gesturestart', e=>e.preventDefault());
 
@@ -2900,9 +2916,7 @@ document.addEventListener('pointerlockchange', ()=>{
   immersive = document.pointerLockElement === renderer.domElement;
   if(immersive){
     if(!walkActive) enterWalk(true);
-    $('#hint').classList.add('show');
   }else{
-    $('#hint').classList.remove('show');
     if(walkActive && !IS_COARSE) enterWalk(false);
   }
 });
@@ -5558,7 +5572,7 @@ function playTrack(id){
   setPlayUI(true);
 }
 function pauseMusic(){ if(currentTrack){ try{currentTrack.stop();}catch(e){} currentTrack=null; } currentTrackId=null; playing=false; document.querySelectorAll('.mtrack').forEach(m=>{ m.classList.remove('active'); const nm=m.querySelector('.nm'); const t=TRACKS.find(x=>x.id===m.dataset.id); if(t) nm.textContent=t.name; }); $('#st-music').textContent='未播放'; setPlayUI(false); }
-function setPlayUI(on){ $('#ic-play').style.display=on?'none':'block'; $('#ic-pause').style.display=on?'block':'none'; $('#btn-play-lbl').textContent=on?'暂停':'播放'; }
+function setPlayUI(on){ $('#ic-play').style.display=on?'none':'block'; $('#ic-pause').style.display=on?'block':'none'; const l=$('#btn-play-lbl'); l.textContent=on?'暂停':'播放'; l.dataset.s=on?'暂停':'播放'; }
 
 /* 呼吸引导 */
 const BR={ active:false, cycle:14, t:0, color:'#7ec8ff', phase:'' };
@@ -5618,11 +5632,35 @@ function applyBreathTheme(id){
 /* ---- 情绪觉察 · 冥想计时 ---- */
 const INTENSITY={1:'轻微',2:'较轻',3:'中等',4:'较重',5:'很重'};
 let moodChoice=null;
-function openLayer(sel){ AudioSys.init(); AudioSys.resume(); if(immersive) document.exitPointerLock(); $(sel).classList.add('show'); }
-function closeLayer(sel){ $(sel).classList.remove('show'); }
+/* 浮层统一开关：记住触发按钮，打开时把焦点送进面板，关闭时还回去。
+   音乐库自己有更细的焦点处理（面板 / 浮层 / 列表行），这里让开。 */
+let layerReturnFocus = null;
+function openLayer(sel){
+  AudioSys.init(); AudioSys.resume(); if(immersive) document.exitPointerLock();
+  const layer = $(sel); if(!layer) return;
+  if(sel !== '#lib-layer'){
+    const a = document.activeElement;
+    layerReturnFocus = (a && a !== document.body && !layer.contains(a)) ? a : null;
+  }
+  layer.classList.add('show');
+  if(sel === '#med-layer') paintMedBadge();
+  if(sel !== '#lib-layer'){
+    const dlg = layer.querySelector('.dialog');
+    if(dlg && dlg.focus) setTimeout(()=>{ try{ dlg.focus({ preventScroll:true }); }catch(e){} }, 30);
+  }
+}
+function closeLayer(sel){
+  const layer = $(sel); if(!layer) return;
+  layer.classList.remove('show');
+  if(sel === '#med-layer') paintMedBadge();
+  if(sel !== '#lib-layer'){
+    const f = layerReturnFocus; layerReturnFocus = null;
+    if(f && document.contains(f)){ try{ f.focus({ preventScroll:true }); }catch(e){} }
+  }
+}
 function resetMood(){
   moodChoice=null;
-  document.querySelectorAll('#mood-grid .mood-chip').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('#mood-grid .mood-chip').forEach(c=>{ c.classList.remove('active'); c.setAttribute('aria-pressed','false'); });
   $('#mood-intensity').value=3; $('#mood-intensity-lbl').textContent='中等';
 }
 function applyMood(){
@@ -5639,14 +5677,17 @@ function buildMoodGrid(){
   const grid=$('#mood-grid'); grid.innerHTML='';
   MOODS.forEach(m=>{
     const d=document.createElement('div'); d.className='mood-chip'; d.dataset.id=m.id;
+    d.setAttribute('role','button'); d.setAttribute('tabindex','0'); d.setAttribute('aria-pressed','false');
     d.innerHTML=`<span class="dot" style="background:${m.color}; color:${m.color}"></span><span>${m.label}</span>`;
-    d.onclick=()=>{ haptic(10); grid.querySelectorAll('.mood-chip').forEach(c=>c.classList.remove('active')); d.classList.add('active'); moodChoice=m; d.blur(); };
+    const pick=()=>{ haptic(10); grid.querySelectorAll('.mood-chip').forEach(c=>{ c.classList.remove('active'); c.setAttribute('aria-pressed','false'); }); d.classList.add('active'); d.setAttribute('aria-pressed','true'); moodChoice=m; d.blur(); };
+    d.onclick=pick;
+    d.onkeydown=e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); pick(); } };
     grid.appendChild(d);
   });
   $('#mood-intensity').oninput=e=>{ $('#mood-intensity-lbl').textContent=INTENSITY[e.target.value]; };
 }
 
-const MED={ running:false, remaining:300, total:300 };
+const MED={ running:false, remaining:300, total:300, done:false };
 const DURS=[3,5,10];
 
 /* ---- 研究记录：本地留痕 + CSV 导出（供课题数据采集使用） ---- */
@@ -5678,17 +5719,35 @@ function exportRecCSV(){
 }
 
 function fmtMed(s){ const m=Math.floor(s/60), ss=Math.round(s%60); return ('0'+m).slice(-2)+':'+('0'+ss).slice(-2); }
-function setMed(min){ if(MED.running) return; MED.remaining=min*60; MED.total=min*60; $('#med-time').textContent=fmtMed(MED.remaining); $('#med-state').textContent='未开始'; }
+/* 面板关掉后计时仍在走：把剩余时间挂到控制台按钮上，
+   否则用户关掉面板就再也看不到这次冥想还在进行（结束的钟声会显得莫名其妙）。 */
+let medBadge = '';
+function paintMedBadge(){
+  const btn = $('#btn-meditate'), lbl = $('#btn-med-lbl');
+  if(!btn) return;
+  const open = $('#med-layer').classList.contains('show');
+  const txt = open ? '' : (MED.running ? fmtMed(Math.ceil(MED.remaining)) : (MED.done ? '完成' : ''));
+  if(txt === medBadge) return;
+  medBadge = txt;
+  btn.classList.toggle('on', !!txt);
+  btn.classList.toggle('running', !!txt);
+  btn.setAttribute('aria-label', open ? '冥想计时'
+    : (MED.done ? '冥想已完成，点击记录感受' : (txt ? ('冥想进行中，剩余 ' + txt) : '冥想计时')));
+  if(lbl){ lbl.textContent = txt || '冥想计时'; lbl.dataset.s = txt || '冥想'; }
+}
+function setMed(min){ if(MED.running) return; MED.done=false; MED.remaining=min*60; MED.total=min*60; $('#med-time').textContent=fmtMed(MED.remaining); $('#med-state').textContent='未开始'; paintMedBadge(); }
 function toggleMed(){
   if(MED.running){ MED.running=false; $('#med-toggle').textContent='继续'; $('#med-state').textContent='已暂停'; }
-  else { if(MED.remaining<=0) setMed(5); MED.running=true; $('#med-toggle').textContent='暂停'; $('#med-state').textContent='冥想中…'; }
+  else { if(MED.remaining<=0) setMed(5); MED.running=true; MED.done=false; $('#med-toggle').textContent='暂停'; $('#med-state').textContent='冥想中…'; }
   if(window.__lib) window.__lib.duck(MED.running);
+  paintMedBadge();
 }
 function updateMed(dt){
-  if(!MED.running) return;
+  if(!MED.running){ paintMedBadge(); return; }
   MED.remaining-=dt;
   if(MED.remaining<=0){ MED.remaining=0; MED.running=false; finishMed(); }
   $('#med-time').textContent=fmtMed(Math.ceil(MED.remaining));
+  paintMedBadge();
 }
 function playChime(){
   AudioSys.init(); AudioSys.resume();
@@ -5704,26 +5763,37 @@ function finishMed(){
   flashPulse();
   playChime();
   $('#med-clock').style.display='none'; $('#med-actions').style.display='none'; $('#med-result').style.display='block';
+  MED.done = true;
+  /* 面板关着的时候结束：钟声不能被当成「什么也没发生」，
+     按钮上留一个「完成」，再提示一句去哪儿记录。 */
+  if(!$('#med-layer').classList.contains('show')){
+    showSceneHint('冥想结束 · 点「冥想」记录此刻的感受', 8000);
+  }
+  paintMedBadge();
 }
 function resetMedUI(){
   $('#med-clock').style.display='block'; $('#med-actions').style.display='flex'; $('#med-result').style.display='none';
-  MED.running=false; MED.remaining=MED.total; $('#med-toggle').textContent='开始'; $('#med-state').textContent='未开始';
+  MED.running=false; MED.done=false; MED.remaining=MED.total; $('#med-toggle').textContent='开始'; $('#med-state').textContent='未开始';
   $('#med-time').textContent=fmtMed(MED.remaining);
   if(window.__lib) window.__lib.duck(false);
-  document.querySelectorAll('#med-stars .rstar').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('#med-stars .rstar').forEach(x=>{ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); });
+  paintMedBadge();
 }
 function buildMedUI(){
-  const wrap=$('#med-dur'); wrap.innerHTML='';
+  const wrap=$('#med-dur'); wrap.innerHTML=''; wrap.setAttribute('role','group'); wrap.setAttribute('aria-label','冥想时长');
   DURS.forEach(d=>{
     const b=document.createElement('button'); b.className='dur-chip'; b.dataset.d=d; b.textContent=d+' 分钟';
+    b.setAttribute('aria-pressed', d===5 ? 'true' : 'false');
     if(d===5) b.classList.add('active');
-    b.onclick=()=>{ wrap.querySelectorAll('.dur-chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); setMed(d); b.blur(); };
+    b.onclick=()=>{ wrap.querySelectorAll('.dur-chip').forEach(x=>{ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); }); b.classList.add('active'); b.setAttribute('aria-pressed','true'); setMed(d); b.blur(); };
     wrap.appendChild(b);
   });
-  const stars=$('#med-stars'); stars.innerHTML='';
+  const stars=$('#med-stars'); stars.innerHTML=''; stars.setAttribute('role','group'); stars.setAttribute('aria-label','情绪自评，1 更紧绷 5 更放松');
   for(let i=1;i<=5;i++){
     const b=document.createElement('button'); b.className='rstar'; b.dataset.v=i; b.textContent=i;
-    b.onclick=()=>{ stars.querySelectorAll('.rstar').forEach(x=>x.classList.remove('active')); b.classList.add('active'); b.blur(); };
+    b.setAttribute('aria-label', i + ' 分');
+    b.setAttribute('aria-pressed','false');
+    b.onclick=()=>{ stars.querySelectorAll('.rstar').forEach(x=>{ x.classList.remove('active'); x.setAttribute('aria-pressed','false'); }); b.classList.add('active'); b.setAttribute('aria-pressed','true'); b.blur(); };
     stars.appendChild(b);
   }
 }
@@ -5761,6 +5831,8 @@ function wireControls(){
     document.body.classList.toggle('ui-hidden');
     haptic(12, e.clientX, e.clientY);
     e.currentTarget.blur();
+    /* 收起 / 展开后要把按钮重新贴回控制台上方（展开时控制台的高度可能已变） */
+    setTimeout(()=>{ if(typeof syncBottomUI === 'function') syncBottomUI(); }, 60);
   };
 
   $('#btn-start').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); resetMood(); openLayer('#mood-layer'); if(window.__lib) setTimeout(()=>window.__lib.paintMini(), 80); };
@@ -5785,6 +5857,19 @@ function wireControls(){
     try{ n=pushRec({ t:Date.now(), pid:pid, score:v, dur:dur, scene:scene, mood:mood }); }catch(e){}
     showHealText('本次冥想已完成', '情绪自评 '+v+' / 5 · '+(n>0?('这是你的第 '+n+' 次记录，'):'')+'愿你把这份平静，带回接下来的时光。', 10000);
   };
+
+  /* Esc：关掉当前浮层（音乐库自己处理逐层退出），再按一次退出漫游。
+     之前只有音乐库响应 Esc，情绪/冥想面板只能用鼠标点 ✕。 */
+  document.addEventListener('keydown', e=>{
+    if(e.key !== 'Escape') return;
+    if(window.__lib && (window.__lib.open || window.__lib.sheetOpen)) return;
+    const tg = e.target;
+    if(tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)){ try{ tg.blur(); }catch(err){} return; }
+    const open = document.querySelector('.layer.show');
+    if(open){ e.preventDefault(); closeLayer('#'+open.id); return; }
+    if(BR.active){ e.preventDefault(); $('#btn-breathe').click(); return; }
+    if(walkActive){ e.preventDefault(); enterWalk(false); }
+  });
 }
 
 /* ============================================================
@@ -10011,8 +10096,43 @@ function loop(now){
 /* 首次手势兜底 */
 window.addEventListener('pointerdown', ()=>{ AudioSys.init(); AudioSys.resume(); }, { once:false });
 
+/* 横滑行：滚到端头就切 at-end，配合 CSS 的右缘淡出提示「后面还有」 */
+function wireRowScroll(){
+  ['#scene-row','#music-row'].forEach(sel=>{
+    const row = $(sel); if(!row || row.dataset.scrollWired) return;
+    row.dataset.scrollWired = '1';
+    const upd = ()=>{
+      const max = row.scrollWidth - row.clientWidth;
+      row.classList.toggle('can-scroll', max > 4);
+      row.classList.toggle('at-end', row.scrollLeft >= max - 4);
+      row.classList.toggle('at-start', row.scrollLeft <= 4);
+    };
+    row.addEventListener('scroll', upd, { passive:true });
+    window.addEventListener('resize', ()=>setTimeout(upd, 80));
+    if(window.ResizeObserver) new ResizeObserver(upd).observe(row);
+    upd();
+  });
+}
+
+/* 右下角「收起界面」跟着控制台高度走：手机上带文字标签后控制台变高，
+   原来写死的 126px 会把它压到场景卡上。 */
+function syncBottomUI(){
+  const tog = $('#ui-toggle'), c = $('#console');
+  if(!tog || !c) return;
+  if(document.body.classList.contains('ui-hidden')){ tog.style.bottom = ''; return; }
+  const cr = c.getBoundingClientRect();
+  const base = cr.height ? (innerHeight - cr.top) : 0;
+  tog.style.bottom = 'calc(' + Math.round(base + 10) + 'px + env(safe-area-inset-bottom))';
+  /* 漫游摇杆也按这个高度抬起来，否则会被控制台压住一截 */
+  document.documentElement.style.setProperty('--ctl-h', Math.round(cr.height || 0) + 'px');
+}
+syncBottomUI();
+if(window.ResizeObserver) new ResizeObserver(()=>syncBottomUI()).observe($('#console'));
+window.addEventListener('resize', ()=>setTimeout(syncBottomUI, 80));
+
 buildSceneCards();
 buildMusicList();
+wireRowScroll();
 buildMoodGrid();
 buildMedUI();
 setMed(5);
