@@ -426,7 +426,7 @@
     content-visibility:auto; contain-intrinsic-size:auto 35px; }
   .lib-row:hover{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.09); }
   .lib-row.active{ background:rgba(255,217,160,.09); border-color:rgba(255,217,160,.42); }
-  .lib-row .idx{ width:20px; flex:0 0 auto; text-align:center; font-size:11px; color:#5d6b85; font-variant-numeric:tabular-nums; }
+  .lib-row .idx{ display:block; width:20px; flex:0 0 auto; text-align:center; font-size:11px; color:#5d6b85; font-variant-numeric:tabular-nums; }
   .lib-row .pbtn{ width:32px; height:32px; flex:0 0 auto; border-radius:50%; border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--txt); display:grid; place-items:center; cursor:pointer; padding:0; transition:.15s; }
   .lib-row .pbtn svg{ width:13px; height:13px; }
   .lib-row:hover .pbtn{ background:rgba(126,200,255,.18); border-color:rgba(126,200,255,.45); color:var(--accent); }
@@ -574,6 +574,9 @@
     .lib-row .lmore{ opacity:1; }
     .lib-row .lfav, .lib-row .lmore{ width:34px; height:34px; }
     .ls-item{ padding:9px 10px; }
+    /* 触屏没有 hover，选项得自己看得出能点 */
+    .ls-opt{ padding:12px 12px; border-color:var(--line); background:var(--glass2); }
+    .ls-opt + .ls-opt{ margin-top:6px; }
     .lp-btn{ width:38px; height:38px; }
     .lp-play{ width:48px; height:48px; }
     .lib-row .ldur{ width:46px; font-size:12px; }
@@ -606,6 +609,9 @@
     .lib-row, .lp-btn, .ls-item, .lib-mini, .lib-search input, .lp-queue, .lm-btn, .lq-row{ transition:none !important; }
   }
   @media (max-width:760px){
+    /* 手机上做成贴底的抽屉：底部两个角是直角，若还居中就会露出一条缝，
+       看着像面板「浮」在半空。对齐到底边才和圆角、安全区对得上。 */
+    #lib-layer{ align-items:flex-end; }
     #lib-layer .dialog.lib{ width:100%; height:92vh; max-height:92vh; border-radius:18px 18px 0 0; }
     .lib-head{ padding:16px 16px 8px; }
     .lib-title{ font-size:15px; letter-spacing:1px; }
@@ -642,7 +648,10 @@
     .lib-row .lnm .lorig{ display:none; }
     .lib-row .lmeta{ font-size:9.5px; margin-top:2px; }
     .lib-row .ltag{ display:none; }
-    .lib-row .ldur{ display:none; }
+    /* 时长留着：古典一首都三五分钟起，选曲时比情绪标签有用；用窄一点的字号换空间 */
+    .lib-row .ldur{ display:block; width:34px; font-size:9.5px; color:#7d8ca6; }
+    /* 「⋯」是手机上加入歌单 / 看详情的唯一入口，不能等 hover */
+    .lib-row .lmore{ opacity:1; }
     .ls-card{ left:0; right:0; bottom:0; top:auto; transform:none; width:100%; max-height:78%; border-radius:18px 18px 0 0; animation:lsUp .2s ease-out; padding-bottom:env(safe-area-inset-bottom); }
     @keyframes lsUp{ from{ transform:translateY(16px); opacity:.5; } to{ transform:translateY(0); opacity:1; } }
     .lib-player{ padding:10px 14px calc(10px + env(safe-area-inset-bottom)); }
@@ -1038,11 +1047,11 @@
               <input id="lib-q" type="text" inputmode="search" placeholder="搜索曲名、场景、风格、情绪…" autocomplete="off" spellcheck="false" aria-label="搜索曲目" />
               <button class="qx" id="lib-q-clear" aria-label="清空搜索">✕</button>
             </label>
-            <button class="lib-sort" id="lib-sort">默认排序</button>
+            <button class="lib-sort" id="lib-sort" aria-label="排序方式" aria-haspopup="dialog">默认排序</button>
           </div>
           <div class="lib-note" id="lib-note" role="status"></div>
           <div class="lib-crumb" id="lib-crumb"></div>
-          <div class="lib-list" id="lib-list"></div>
+          <div class="lib-list" id="lib-list" role="list" aria-label="曲目列表"></div>
         </section>
       </div>
       <div class="lib-player">
@@ -8175,6 +8184,7 @@ const Lib = {
   mode:'one', _uiAt:0, _actId:null, _queue:null, _queueName:'', _fast:false,
   sleep:{ endAt:0, fade:1 }, _duck:false, _sleepShown:-1, _saveAt:0,
   kbd:-1, _retFocus:null, _touched:false,
+  _composing:false, _scrub:false, _qTimer:0,
   _msId:null, _msPosAt:0, _liveId:null,
 
   /* ===== 浏览状态 ===== */
@@ -8276,6 +8286,11 @@ const Lib = {
     if(doRender !== false){
       this.renderList(); this.renderCrumb();
       const list = $('#lib-list'); if(list) list.scrollTop = 0;
+      /* 搜索结果也念一句：看不见列表时，至少知道「搜到几首」 */
+      if(this.q){
+        const n = this._lastCount || 0;
+        this.say(n ? ('找到 ' + n + ' 首和「' + this.q + '」相关的曲目') : ('没有和「' + this.q + '」相关的曲目'));
+      }
     }
   },
   setSort(k){
@@ -8304,6 +8319,26 @@ const Lib = {
   },
   matchQuery(t){
     return this.matchText(t, this.q);
+  },
+  /* 搜索相关度：曲名 > 原名 > 作曲家 > 其余字段。
+     同名或近义的曲目不少，只按默认顺序排会让「月光」这种词的第一条落在冷门曲上。 */
+  matchScore(t){
+    const q = (this.q || '').trim().toLowerCase();
+    if(!q) return 0;
+    const nm = String(t.name || '').toLowerCase();
+    const og = String(t.orig || '').toLowerCase();
+    const cp = String(t.composer || '').toLowerCase();
+    const hay = this.haystack(t);
+    let s = 0;
+    q.split(/\s+/).filter(Boolean).forEach(w=>{
+      if(nm === w) s += 40;
+      else if(nm.indexOf(w) === 0) s += 24;
+      else if(nm.indexOf(w) > 0) s += 14;
+      if(og.indexOf(w) >= 0) s += 8;
+      if(cp.indexOf(w) >= 0) s += 5;
+      if(hay.indexOf(w) >= 0) s += 1;
+    });
+    return s;
   },
   /* 把命中的关键词标出来，510 首里一眼看到为什么这首被搜到 */
   hl(text){
@@ -8337,6 +8372,14 @@ const Lib = {
   },
   applySort(arr){
     const a = arr.slice();
+    /* 默认排序 + 有关键词时按相关度走，同分保持原顺序（疗愈在前），
+       免得搜出来的第一条是只在说明里蹭到一个字的曲子 */
+    if(this.q && this.sort === 'default'){
+      const sc = a.map(t=> this.matchScore(t));
+      return a.map((t, i)=>({ t, i, s: sc[i] }))
+        .sort((x, y)=> (y.s - x.s) || (x.i - y.i))
+        .map(o=> o.t);
+    }
     const by = {
       default:(x,y)=> (!!x.gen === !!y.gen) ? 0 : (x.gen ? -1 : 1),
       name:(x,y)=> String(x.name).localeCompare(String(y.name), 'zh-Hans-CN'),
@@ -8743,6 +8786,7 @@ const Lib = {
   renderList(){
     const list = $('#lib-list'); if(!list) return;
     const items = this.filtered();
+    this._lastCount = items.length;
     this.kbd = -1;
     if(!items.length){
       let msg = this.q
@@ -8754,7 +8798,7 @@ const Lib = {
       if(this.q && this.browseKind() !== 'all'){
         msg += '<br><button class="cbtn" data-act="qall" style="margin-top:10px">在全部 ' + LIB_TRACKS.length + ' 首里搜索</button>';
       }
-      list.innerHTML = '<div class="ls-empty" style="padding:32px 12px;text-align:center;font-size:12px;line-height:1.9;">' + msg + '</div>';
+      list.innerHTML = '<div class="ls-empty" role="presentation" style="padding:32px 12px;text-align:center;font-size:12px;line-height:1.9;">' + msg + '</div>';
       this._paintId = null; this._paintSt = '';
       this.sync();
       return;
@@ -8775,8 +8819,8 @@ const Lib = {
         const miss = this.q.toLowerCase().split(/\s+/).filter(Boolean).some(w=> shown.indexOf(w) < 0);
         if(miss) metaHtml += '<span class="lmatch">匹配「' + this.q + '」</span>';
       }
-      h += '<div class="lib-row' + (act ? ' active' : '') + (act && st === 'playing' ? ' playing' : '') + '" data-id="' + t.id + '">'
-        + '<div class="idx">' + num + '</div>'
+      h += '<div class="lib-row' + (act ? ' active' : '') + (act && st === 'playing' ? ' playing' : '') + '" data-id="' + t.id + '" role="listitem"' + (act ? ' aria-current="true"' : '') + '>'
+        + '<span class="idx" aria-hidden="true">' + num + '</span>'
         + '<button class="pbtn" type="button" aria-label="播放 ' + t.name + '">' + btn + '</button>'
         + '<div class="lmain"><div class="lnm"><span class="playing-dots"><i></i><i></i><i></i></span>' + this.hl(t.name)
         + '<span class="lorig">' + (t.orig ? ' · ' + this.hl(t.orig) : '') + '</span></div>'
@@ -8796,12 +8840,17 @@ const Lib = {
   },
 
   /* 键盘：↑↓ 移动选中行，Enter 播放，F 收藏 —— 不外接鼠标也能挑曲 */
-  moveKbd(d){
+  moveKbd(d, edge){
     const rows = document.querySelectorAll('#lib-list .lib-row');
     if(!rows.length) return false;
-    let i = this.kbd;
-    if(i < 0) i = d > 0 ? 0 : rows.length - 1;
-    else i = Math.max(0, Math.min(rows.length - 1, i + d));
+    let i;
+    if(edge === 'home') i = 0;
+    else if(edge === 'end') i = rows.length - 1;
+    else {
+      i = this.kbd;
+      if(i < 0) i = d > 0 ? 0 : rows.length - 1;
+      else i = Math.max(0, Math.min(rows.length - 1, i + d));
+    }
     rows.forEach(r=> r.classList.remove('kbd'));
     const row = rows[i];
     if(!row) return false;
@@ -8943,6 +8992,7 @@ const Lib = {
       box.appendChild(b);
     };
     mk('立即播放', libFmt(libPlan(t).loopSec), ()=>{ this.closeSheet(); this.playFrom(id); });
+    mk('下一首播放', '插到当前这首之后', ()=>{ this.closeSheet(); this.playNext(id); });
     mk('查看曲目信息', t.composer, ()=> this.openInfo(id));
     mk('加入歌单…', this.playlists.length + ' 个歌单', ()=> this.openAddToPlaylist(id));
     mk(this.isFav(id) ? '取消收藏' : '加入收藏', '', ()=>{ this.toggleFav(id); this.closeSheet(); });
@@ -9262,6 +9312,14 @@ const Lib = {
 
   modeLabel(){ return this.mode === 'one' ? '单曲循环' : (this.mode === 'all' ? '列表循环' : '随机播放'); },
 
+  /* 只念一句、不参与「在听什么」的去重，用于搜索命中数这类一次性提示 */
+  say(txt){
+    const el = $('#lib-live'); if(!el) return;
+    el.textContent = '';
+    clearTimeout(this._sayT);
+    this._sayT = setTimeout(()=>{ el.textContent = txt; }, 40);
+  },
+
   /* ================= 音量：自动压低 / 睡眠淡出 ================= */
   /* 统一算一个目标增益，避免多处直接改 libBus 互相覆盖 */
   libGainTarget(){
@@ -9400,6 +9458,7 @@ const Lib = {
         if(!row) return;
         row.classList.toggle('active', on);
         row.classList.toggle('playing', on && st === 'playing');
+        if(on) row.setAttribute('aria-current', 'true'); else row.removeAttribute('aria-current');
         const b = row.querySelector('.pbtn');
         if(b) b.innerHTML = on
           ? (st === 'loading' ? '<i class="sp"></i>' : (st === 'playing' ? LIB_ICON.pause : LIB_ICON.play))
@@ -9525,6 +9584,9 @@ const Lib = {
     this.pos = ((t % L) + L) % L;
     const now = performance.now();
     if(now - this._saveAt > 5000){ this._saveAt = now; this.saveLast(); }
+    /* 手指按在进度条上时不要抢：tick 每 180ms 会把填充和滑块拉回真实位置，
+       拖动的人会看到进度条自己往回跳，以为拖不动 */
+    if(this._scrub) return;
     if(now - this._uiAt < 180) return;
     this._uiAt = now;
     this.sleepTick();
@@ -9544,6 +9606,22 @@ const Lib = {
     if(!items.length) return;
     this.setQueue(items.map(t=> t.id), this.viewName());
     this.select(items[0].id, true);
+  },
+  /* 「下一首播放」：只挪队列顺序，不动正在放的那一首 */
+  playNext(id){
+    const t = this.track(id); if(!t) return;
+    if(this.cur && this.cur.id === id && (this.state === 'playing' || this.state === 'loading')){
+      this.note('这一首已经在播放了。');
+      clearTimeout(this._noteT); this._noteT = setTimeout(()=> this.clearNote(), 2200);
+      return;
+    }
+    const { ids, i } = this.queueIdx();
+    const arr = ids.filter(x=> x !== id);
+    arr.splice(i >= 0 ? i + 1 : 0, 0, id);
+    this.setQueue(arr, this._queueName || this.viewName());
+    this.note('「' + t.name + '」已排到' + (i >= 0 ? '这一首之后' : '队列最前') + '。');
+    clearTimeout(this._noteT); this._noteT = setTimeout(()=> this.clearNote(), 2600);
+    haptic(7);
   },
   select(id, force){
     const t = this.track(id); if(!t) return;
@@ -9694,8 +9772,25 @@ function wireLibrary(){
   /* 搜索 */
   const q = $('#lib-q');
   if(q){
-    q.addEventListener('input', ()=> Lib.setQuery(q.value));
-    q.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); q.blur(); } });
+    /* 中文输入法：拼音敲到一半时 input 事件会带着「yequ」这种半成品一直触发，
+       照单全收会一边打字一边闪「没有找到」，所以拼写阶段先不搜，上屏了再搜。 */
+    const commitQ = ()=>{ clearTimeout(Lib._qTimer); Lib._qTimer = 0; Lib.setQuery(q.value); };
+    q.addEventListener('compositionstart', ()=>{ Lib._composing = true; });
+    q.addEventListener('compositionend', ()=>{ Lib._composing = false; commitQ(); });
+    q.addEventListener('input', e=>{
+      if(Lib._composing || e.isComposing) return;
+      /* 510 行重排一次约 30ms，连续敲字时压一压节拍，手感和结果都更稳 */
+      clearTimeout(Lib._qTimer);
+      Lib._qTimer = setTimeout(()=>{ Lib._qTimer = 0; Lib.setQuery(q.value); }, 90);
+    });
+    q.addEventListener('keydown', e=>{
+      if(e.key === 'Enter'){ e.preventDefault(); commitQ(); q.blur(); return; }
+      /* 焦点在搜索框里时，Esc 先清关键词，别一下子把整个曲库关掉 */
+      if(e.key === 'Escape' && q.value){
+        e.preventDefault(); e.stopPropagation();
+        q.value = ''; commitQ();
+      }
+    });
   }
   const qc = $('#lib-q-clear');
   if(qc) qc.onclick = ()=>{ const el = $('#lib-q'); if(el) el.value = ''; Lib.setQuery(''); };
@@ -9750,13 +9845,24 @@ function wireLibrary(){
   }
   const seek = $('#lp-seek');
   if(seek){
+    const grab = ()=>{ Lib._scrub = true; };
+    const release = ()=>{ Lib._scrub = false; };
+    seek.addEventListener('pointerdown', grab);
+    seek.addEventListener('touchstart', grab, { passive:true });
     seek.addEventListener('input', e=>{
+      Lib._scrub = true;
       const r = (+e.target.value) / 1000;
       Lib.paintProgress(r);
       const el = $('#lp-cur');
       if(el && Lib.cur){ const plan = Lib.plan || libPlan(Lib.cur); el.textContent = libFmt(r * plan.loopSec); }
     });
-    seek.addEventListener('change', e=>{ Lib.seek((+e.target.value) / 1000); });
+    seek.addEventListener('change', e=>{ Lib.seek((+e.target.value) / 1000); release(); });
+    seek.addEventListener('pointerup', release);
+    seek.addEventListener('pointercancel', release);
+    seek.addEventListener('touchend', release, { passive:true });
+    seek.addEventListener('blur', release);
+    /* 键盘调进度（方向键）不会触发 pointer 事件，用 keyup 兜一层，免得卡在「拖动中」 */
+    seek.addEventListener('keyup', release);
   }
 
   /* 面板内浮层 */
@@ -9795,6 +9901,10 @@ function wireLibrary(){
     else if(e.key === 'ArrowRight'){ e.preventDefault(); Lib.next(1); }
     else if(e.key === 'ArrowLeft'){ e.preventDefault(); Lib.prev(); }
     else if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); Lib.moveKbd(e.key === 'ArrowDown' ? 1 : -1); }
+    /* 510 首一屏只排得下十来行，只给单步键翻到手酸 */
+    else if(e.key === 'PageDown' || e.key === 'PageUp'){ e.preventDefault(); Lib.moveKbd(e.key === 'PageDown' ? 8 : -8); }
+    else if(e.key === 'Home'){ e.preventDefault(); Lib.moveKbd(0, 'home'); }
+    else if(e.key === 'End'){ e.preventDefault(); Lib.moveKbd(0, 'end'); }
     else if(e.key === 'Enter'){ Lib.playKbd(); }
     else if(e.key === 'f' || e.key === 'F'){ Lib.favKbd(); }
   });
