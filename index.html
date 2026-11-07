@@ -526,6 +526,30 @@
   /* 视觉上只有 22px，纵向扩热区，横向只放 2px，免得抢了进度条最右端 */
   .lp-sleep{ position:relative; }
   .lp-sleep::after{ content:''; position:absolute; inset:-9px -2px; border-radius:10px; }
+  /* 队列入口：右对齐的小计数，不抢进度条的拖动区域 */
+  .lp-queue{ position:relative; flex:0 0 auto; display:inline-flex; align-items:center; gap:3px; height:22px; padding:0 5px; border:none; border-radius:6px; background:none; color:#6b7a94; font-size:10px; font-variant-numeric:tabular-nums; cursor:pointer; transition:.16s; }
+  .lp-queue svg{ width:13px; height:13px; }
+  .lp-queue em{ font-style:normal; letter-spacing:.2px; }
+  .lp-queue:hover{ color:var(--txt); background:rgba(255,255,255,.08); }
+  .lp-queue.on{ color:var(--accent); }
+  .lp-queue::after{ content:''; position:absolute; inset:-6px -2px; border-radius:8px; }
+  /* 队列浮层里的行 */
+  .lq-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:2px 4px 8px; font-size:11px; color:#6b7a94; letter-spacing:.3px; }
+  .lq-row{ display:flex; align-items:center; gap:6px; padding:4px 9px 4px 6px; border-radius:9px; border:1px solid transparent; transition:background .14s, border-color .14s; }
+  .lq-row:hover{ background:rgba(255,255,255,.06); }
+  .lq-row.cur{ background:rgba(255,217,160,.09); border-color:rgba(255,217,160,.32); }
+  .lq-hit{ flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:9px; padding:3px 0; border:none; background:none; color:inherit; text-align:left; cursor:pointer; border-radius:7px; }
+  .lq-hit:focus-visible{ outline:1px solid rgba(126,200,255,.6); outline-offset:1px; }
+  .lq-row .n{ width:20px; flex:0 0 auto; text-align:center; font-size:10.5px; color:#6b7a94; font-variant-numeric:tabular-nums; }
+  .lq-row.cur .n{ color:var(--accent-warm); }
+  .lq-row .q-main{ flex:1 1 auto; min-width:0; }
+  .lq-row .q-nm{ display:block; font-size:12.5px; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lq-row .q-sub{ display:block; margin-top:1px; font-size:10.5px; color:var(--txt-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lq-row .q-x{ flex:0 0 auto; width:24px; height:24px; border:none; border-radius:6px; background:none; color:#6b7a94; font-size:12px; line-height:1; cursor:pointer; display:grid; place-items:center; padding:0; }
+  .lq-row .q-x:hover{ color:#ffb3b3; background:rgba(255,120,120,.14); }
+  /* 键盘移动时的行焦点 */
+  .lib-row.kbd{ background:rgba(126,200,255,.09); border-color:rgba(126,200,255,.45); }
+  .dialog.lib:focus{ outline:none; }
   .lp-bar{ display:flex; align-items:center; gap:10px; margin-top:10px; }
   .lp-bar .tm{ width:38px; flex:0 0 auto; font-size:11px; color:var(--txt-dim); font-variant-numeric:tabular-nums; }
   .lp-bar .tm:last-child{ text-align:right; }
@@ -545,8 +569,34 @@
     .lp-play{ width:48px; height:48px; }
     .lib-row .ldur{ width:46px; font-size:12px; }
   }
+  /* ---- 关掉音乐库后的迷你播放条：还能暂停、回库、看进度 ---- */
+  .lib-mini{
+    position:fixed; right:calc(18px + env(safe-area-inset-right)); bottom:196px; z-index:31;
+    display:none; align-items:center; gap:4px; width:min(266px,72vw); padding:8px 8px 11px;
+    border-radius:14px; border:1px solid rgba(126,200,255,.26); background:rgba(8,13,26,.9);
+    box-shadow:0 14px 38px rgba(0,0,0,.5); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    transition:opacity .22s ease, transform .22s ease;
+  }
+  .lib-mini.show{ display:flex; animation:lmini .24s ease-out; }
+  @keyframes lmini{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+  .lm-open{ flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:8px; padding:0; border:none; background:none; color:inherit; cursor:pointer; text-align:left; }
+  .lm-art{ width:28px; height:28px; flex:0 0 auto; border-radius:8px; display:grid; place-items:center; background:linear-gradient(135deg,rgba(94,178,245,.34),rgba(126,200,255,.1)); border:1px solid rgba(126,200,255,.3); color:#cfeaff; font-size:13px; }
+  .lm-txt{ min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .lm-txt b{ font-size:11.5px; font-weight:600; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lm-txt i{ font-style:normal; font-size:9.5px; color:var(--txt-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:.2px; }
+  .lm-btn{ width:30px; height:30px; flex:0 0 auto; border-radius:50%; border:none; background:linear-gradient(135deg,#5eb2f5,#7ec8ff); color:#071422; display:grid; place-items:center; padding:0; cursor:pointer; }
+  .lm-btn:hover{ filter:brightness(1.07); }
+  .lm-btn:active{ transform:scale(.94); }
+  .lm-btn svg{ width:12px; height:12px; }
+  .lm-line{ position:absolute; left:12px; right:12px; bottom:5px; height:2px; border-radius:2px; background:rgba(255,255,255,.12); overflow:hidden; pointer-events:none; }
+  .lm-line i{ display:block; height:100%; width:0; border-radius:2px; background:linear-gradient(90deg,#5eb2f5,#7ec8ff); }
+  body.at-start .lib-mini, body.mode-piano .lib-mini, body.ui-hidden .lib-mini{ display:none !important; }
+
+  @media (prefers-reduced-motion: reduce){
+    .lib-row .playing-dots i, .lp-play .sp, .lib-row .pbtn .sp, .lib-mini.show, .ls-card, .ls-card.wide{ animation:none !important; }
+    .lib-row, .lp-btn, .ls-item, .lib-mini, .lib-search input, .lp-queue, .lm-btn, .lq-row{ transition:none !important; }
+  }
   @media (max-width:760px){
-    #lib-layer{ align-items:flex-end; }
     #lib-layer .dialog.lib{ width:100%; height:92vh; max-height:92vh; border-radius:18px 18px 0 0; }
     .lib-head{ padding:16px 16px 8px; }
     .lib-title{ font-size:15px; letter-spacing:1px; }
@@ -571,7 +621,8 @@
     #lib-mob-artist, #lib-mob-era{ display:flex; }
     .lib-tools{ padding:10px 12px 4px; }
     .lib-search input{ height:34px; font-size:12px; }
-    .lib-crumb{ padding:2px 14px 6px; min-height:24px; }
+    .lib-crumb{ padding:2px 10px 6px; min-height:24px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; -ms-overflow-style:none; }
+    .lib-crumb::-webkit-scrollbar{ display:none; width:0; height:0; }
     .lib-crumb .cn{ font-size:13px; }
     .lib-crumb .cbtn{ height:24px; padding:0 9px; font-size:10.5px; }
     .lib-list{ padding:0 8px 8px; }
@@ -593,6 +644,12 @@
     .lp-bar{ margin-top:8px; gap:8px; }
     .lp-bar .tm{ width:34px; font-size:10px; }
     .lp-mini{ display:none; }
+    .lp-queue{ height:24px; padding:0 4px; }
+    .lp-queue svg{ width:12px; height:12px; }
+    .lib-mini{ right:calc(10px + env(safe-area-inset-right)); width:min(234px,66vw); padding:7px 7px 10px; }
+    .lm-art{ width:24px; height:24px; border-radius:7px; font-size:11px; }
+    .lm-txt b{ font-size:11px; }
+    .lm-txt i{ font-size:9px; }
     .li-grid{ grid-template-columns:1fr; gap:6px; }
   }
   @media (max-height:520px){
@@ -867,6 +924,16 @@
 
   <button id="ui-toggle" aria-label="收起/展开界面" title="收起界面"><span>⌄</span></button>
 
+  <!-- 关掉音乐库后仍在响时，留一条迷你播放条：能暂停、能回库、看得到进度 -->
+  <div id="lib-mini" class="lib-mini" aria-hidden="true">
+    <button class="lm-open" id="lm-open" title="打开音乐库">
+      <span class="lm-art" aria-hidden="true">♪</span>
+      <span class="lm-txt"><b id="lm-nm">—</b><i id="lm-meta">—</i></span>
+    </button>
+    <button class="lm-btn" id="lm-toggle" aria-label="播放或暂停"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+    <span class="lm-line" aria-hidden="true"><i id="lm-fill2"></i></span>
+  </div>
+
   <div id="piano-panel">
     <div class="pp-top">
       <div id="pp-scenes" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
@@ -920,7 +987,7 @@
 
   <!-- 音乐库：200 首（10 个疗愈场景 × 18 首 + 20 首古典）· 浏览 / 搜索 / 歌单 / 收藏 / 播放 -->
   <div id="lib-layer" class="layer">
-    <div class="dialog panel lib">
+    <div class="dialog panel lib" role="dialog" aria-modal="true" aria-label="音乐库" tabindex="-1">
       <div class="lib-head">
         <div>
           <div class="lib-title">音乐库 <em class="lib-count" id="lib-count">200 首 · 疗愈 + 古典</em></div>
@@ -980,6 +1047,10 @@
           <span class="tm" id="lp-cur">00:00</span>
           <div class="lp-track"><i id="lp-fill"></i><b id="lp-knob"></b><input type="range" id="lp-seek" min="0" max="1000" value="0" aria-label="播放进度"></div>
           <span class="tm" id="lp-dur">00:00</span>
+          <button class="lp-queue" id="lp-queue" aria-label="播放队列" title="播放队列">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h9M4 11h9M4 16h6"/><path d="M17 10.5v6"/><circle cx="15.4" cy="17" r="1.7" fill="currentColor" stroke="none"/></svg>
+            <em id="lp-qn">0/0</em>
+          </button>
           <button class="lp-sleep" id="lp-sleep" aria-pressed="false" aria-label="睡眠定时" title="睡眠定时 · 到时淡出停下"></button>
         </div>
       </div>
@@ -5672,8 +5743,8 @@ function wireControls(){
     e.currentTarget.blur();
   };
 
-  $('#btn-start').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); resetMood(); openLayer('#mood-layer'); };
-  $('#btn-skip').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); playTrack('rainPiano'); showGuidance('library'); showSceneHint(TAP_WORD+'闪烁的光点：明亮的多半能走近，点它就直接过去', 5500); };
+  $('#btn-start').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); resetMood(); openLayer('#mood-layer'); if(window.__lib) setTimeout(()=>window.__lib.paintMini(), 80); };
+  $('#btn-skip').onclick=()=>{ AudioSys.init(); AudioSys.resume(); $('#start').classList.add('hide'); document.body.classList.remove('at-start'); playTrack('rainPiano'); showGuidance('library'); showSceneHint(TAP_WORD+'闪烁的光点：明亮的多半能走近，点它就直接过去', 5500); if(window.__lib) setTimeout(()=>window.__lib.paintMini(), 80); };
 
   $('#btn-mood').onclick=()=>{ resetMood(); openLayer('#mood-layer'); };
   $('#mood-close').onclick=()=>closeLayer('#mood-layer');
@@ -6612,8 +6683,9 @@ const Lib = {
   /* ===== 播放状态 ===== */
   open:false, cur:null, plan:null, state:'idle', err:'', pos:0,
   startAt:0, nextPassAt:0, passIdx:0, timer:null, loadT:null, gain:null,
-  mode:'one', _uiAt:0, _actId:null, _queue:null, _fast:false,
+  mode:'one', _uiAt:0, _actId:null, _queue:null, _queueName:'', _fast:false,
   sleep:{ endAt:0, fade:1 }, _duck:false, _sleepShown:-1, _saveAt:0,
+  kbd:-1, _retFocus:null, _touched:false,
 
   /* ===== 浏览状态 ===== */
   browse:'all', q:'', sort:'default',
@@ -6677,6 +6749,17 @@ const Lib = {
   /* ================= 视图状态 ================= */
   browseKind(){ return (this.browse || 'all').split(':')[0]; },
   browseKey(){ const p = (this.browse || '').split(':'); return p.length > 1 ? p.slice(1).join(':') : ''; },
+  /* 当前浏览视图的名字，用来标注「这一轮播的是哪一叠」 */
+  viewName(){
+    const kind = this.browseKind(), key = this.browseKey();
+    if(kind === 'fav') return '我的收藏';
+    if(kind === 'recent') return '最近播放';
+    if(kind === 'era'){ const e = libEra(key); return '风格 · ' + (e ? e.name : key); }
+    if(kind === 'album'){ const a = libAlbum(key); return a ? a.name : key; }
+    if(kind === 'artist') return key + ' 作品';
+    if(kind === 'pl'){ const p = this.playlist(key); return p ? p.name : '歌单'; }
+    return '全部曲目';
+  },
   setBrowse(k){
     this.browse = k; this.savePref();
     this.closeSheet();
@@ -6756,6 +6839,159 @@ const Lib = {
     return m[this.sort] || '默认排序';
   },
   queue(){ const ids = this.filtered().map(t=> t.id); return ids.length ? ids : LIB_TRACKS.map(t=> t.id); },
+  /* 播放队列 = 按下播放那一刻的列表快照，之后换筛选不会打断正在进行的这一轮 */
+  setQueue(ids, name){
+    this._queue = (ids && ids.length) ? ids.slice() : null;
+    this._queueName = name || '';
+    this.paintQueue();
+    this.paintMini();
+  },
+  queueState(){ const ids = this._queue; return (ids && ids.length) ? ids : this.queue(); },
+  queueIdx(){
+    const ids = this.queueState();
+    return { ids, i: this.cur ? ids.indexOf(this.cur.id) : -1 };
+  },
+  paintQueue(){
+    const b = $('#lp-queue'); if(!b) return;
+    const { ids, i } = this.queueIdx();
+    const n = $('#lp-qn');
+    if(n) n.textContent = ids.length ? ((i >= 0 ? (i + 1) : '–') + '/' + ids.length) : '0/0';
+    b.classList.toggle('on', this.state === 'playing');
+    b.title = ids.length
+      ? (i >= 0 ? ('播放队列 · 第 ' + (i + 1) + ' 首，共 ' + ids.length + ' 首') : ('播放队列 · 共 ' + ids.length + ' 首'))
+      : '播放队列';
+    b.setAttribute('aria-label', b.title);
+  },
+  /* 迷你播放条：关掉音乐库后仍能暂停 / 回库 / 看进度 */
+  paintMini(){
+    const el = $('#lib-mini'); if(!el) return;
+    const show = !this.open && this._touched && !!this.cur && (this.state === 'playing' || this.state === 'paused');
+    el.classList.toggle('show', show);
+    el.setAttribute('aria-hidden', show ? 'false' : 'true');
+    if(!show) return;
+    const nm = $('#lm-nm'); if(nm) nm.textContent = this.cur.name;
+    const mt = $('#lm-meta');
+    if(mt){
+      const { ids, i } = this.queueIdx();
+      const pos = (i >= 0 && ids.length) ? (' · 第 ' + (i + 1) + '/' + ids.length + ' 首') : '';
+      mt.textContent = (this.state === 'playing' ? '正在播放' : '已暂停') + pos;
+    }
+    const b = $('#lm-toggle');
+    if(b){
+      b.innerHTML = this.state === 'playing' ? LIB_ICON.pause : LIB_ICON.play;
+      b.setAttribute('aria-label', this.state === 'playing' ? '暂停' : '继续播放');
+      b.setAttribute('title', this.state === 'playing' ? '暂停' : '继续播放');
+    }
+    const f = $('#lm-fill2');
+    if(f){
+      const L = (this.plan && this.plan.loopSec) || libDur(this.cur);
+      f.style.width = (L ? Math.min(100, this.posNow() / L * 100) : 0) + '%';
+    }
+    /* 贴在控制台上方，同时避开右下角的「收起界面」按钮 */
+    const c = $('#console'), tog = $('#ui-toggle');
+    let base = 180;
+    if(c){
+      const cr = c.getBoundingClientRect();
+      if(cr.height) base = (innerHeight - cr.top) + 14;
+    }
+    if(tog && getComputedStyle(tog).display !== 'none'){
+      base = Math.max(base, innerHeight - tog.getBoundingClientRect().top + 12);
+    }
+    el.style.bottom = Math.round(base) + 'px';
+  },
+  openQueue(){
+    const { ids, i } = this.queueIdx();
+    const box = document.createElement('div');
+    const head = document.createElement('div');
+    head.className = 'lq-head';
+    head.innerHTML = '<span>来自「' + (this._queueName || this.viewName()) + '」 · 共 ' + ids.length + ' 首</span>'
+      + '<span>' + (i >= 0 ? ('正在第 ' + (i + 1) + ' 首') : '未在队列中') + '</span>';
+    box.appendChild(head);
+    const tip = document.createElement('div');
+    tip.className = 'ls-hint';
+    tip.style.margin = '0 0 6px';
+    tip.textContent = '点任意一首直接跳过去；右侧 ✕ 只把它从这轮队列里去掉，曲库不受影响。';
+    box.appendChild(tip);
+    const LIM = 16;
+    const start = i < 0 ? 0 : i;
+    for(let k = start; k < ids.length && k - start < LIM; k++){
+      box.appendChild(this.queueRow(ids[k], k, k === i));
+    }
+    if(i > 0){
+      const d = document.createElement('div');
+      d.className = 'ls-hint';
+      d.textContent = '队列前 ' + i + ' 首已播过，这里从当前这首开始列。';
+      box.appendChild(d);
+    }
+    if(i >= 0 && i + LIM < ids.length){
+      const d = document.createElement('div');
+      d.className = 'ls-hint';
+      d.textContent = '后面还有 ' + (ids.length - i - LIM) + ' 首，会依次播放。';
+      box.appendChild(d);
+    }
+    if(this.mode === 'one'){
+      const d = document.createElement('div');
+      d.className = 'ls-hint';
+      d.textContent = '当前是「单曲循环」，这首会一直重复；按「下一首」才会换。';
+      box.appendChild(d);
+    }
+    this.openSheet({ title:'播放队列', wide:true, body:box, foot:[
+      { label:'清空后续', onClick: ()=> this.clearAfter() },
+      { label:'关闭', cls:'pri', onClick: ()=> this.closeSheet() }
+    ]});
+  },
+  queueRow(id, idx, isCur){
+    const t = this.track(id);
+    const row = document.createElement('div');
+    if(!t) return row;
+    row.className = 'lq-row' + (isCur ? ' cur' : '');
+    row.innerHTML = '<button class="lq-hit" type="button" aria-label="播放 ' + t.name + '">'
+      + '<span class="n">' + (isCur ? '▶' : (idx + 1)) + '</span>'
+      + '<span class="q-main"><span class="q-nm">' + t.name + '</span>'
+      + '<span class="q-sub">' + this.metaLine(t, true) + '</span></span></button>'
+      + (isCur ? '' : '<button class="q-x" type="button" aria-label="从队列移除">✕</button>');
+    const hit = row.querySelector('.lq-hit');
+    if(hit) hit.onclick = ()=>{ this.closeSheet(); this.select(id, true); };
+    const qx = row.querySelector('.q-x');
+    if(qx) qx.onclick = (e)=>{ e.stopPropagation(); this.removeFromQueue(id); };
+    return row;
+  },
+  removeFromQueue(id){
+    if(!this._queue || this._queue.indexOf(id) < 0) return false;
+    this._queue = this._queue.filter(x=> x !== id);
+    if(!this._queue.length) this._queue = null;
+    this.paintQueue(); this.paintMini();
+    if(this.sheetOpen) this.openQueue();
+    return true;
+  },
+  clearAfter(){
+    const { ids, i } = this.queueIdx();
+    if(i < 0 || i >= ids.length - 1){
+      this.closeSheet();
+      this.note('后面已经没有排队的曲目了。');
+      clearTimeout(this._noteT); this._noteT = setTimeout(()=> this.clearNote(), 2400);
+      return;
+    }
+    this._queue = ids.slice(0, i + 1);
+    this.paintQueue(); this.paintMini();
+    if(this.sheetOpen) this.openQueue();
+  },
+  shufflePlay(){
+    const items = this.filtered();
+    if(!items.length) return;
+    const ids = items.map(t=> t.id);
+    for(let n = ids.length - 1; n > 0; n--){
+      const j = Math.floor(Math.random() * (n + 1));
+      const tmp = ids[n]; ids[n] = ids[j]; ids[j] = tmp;
+    }
+    this.mode = 'shuffle';
+    this.savePref();
+    this.setQueue(ids, this.viewName());
+    this.closeSheet();
+    this.select(ids[0], true);
+    this.note('已打乱 ' + ids.length + ' 首，按随机顺序播放；想换回顺序播放，点播放条上的模式按钮。');
+    clearTimeout(this._noteT); this._noteT = setTimeout(()=> this.clearNote(), 3800);
+  },
 
   /* ================= 收藏 ================= */
   toggleFav(id){
@@ -6939,6 +7175,7 @@ const Lib = {
       h += '<button class="cbtn danger" data-act="delpl">删除</button>';
     }
     if(items.length) h += '<button class="cbtn" data-act="playall">播放全部</button>';
+    if(items.length > 1) h += '<button class="cbtn" data-act="shuffle">随机播放</button>';
     box.innerHTML = h;
 
     const sBtn = $('#lib-sort');
@@ -6964,6 +7201,7 @@ const Lib = {
   renderList(){
     const list = $('#lib-list'); if(!list) return;
     const items = this.filtered();
+    this.kbd = -1;
     if(!items.length){
       const msg = this.q
         ? ('没有找到和「' + this.q + '」相关的曲目，换个关键词试试。')
@@ -7011,16 +7249,50 @@ const Lib = {
     this.sync();
   },
 
+  /* 键盘：↑↓ 移动选中行，Enter 播放，F 收藏 —— 不外接鼠标也能挑曲 */
+  moveKbd(d){
+    const rows = document.querySelectorAll('#lib-list .lib-row');
+    if(!rows.length) return false;
+    let i = this.kbd;
+    if(i < 0) i = d > 0 ? 0 : rows.length - 1;
+    else i = Math.max(0, Math.min(rows.length - 1, i + d));
+    rows.forEach(r=> r.classList.remove('kbd'));
+    const row = rows[i];
+    if(!row) return false;
+    row.classList.add('kbd');
+    this.kbd = i;
+    try{ row.scrollIntoView({ block:'nearest' }); }catch(e){}
+    return true;
+  },
+  playKbd(){
+    const rows = document.querySelectorAll('#lib-list .lib-row');
+    if(this.kbd < 0 || !rows[this.kbd]) return false;
+    const id = rows[this.kbd].getAttribute('data-id');
+    if(!id) return false;
+    this.playFrom(id);
+    return true;
+  },
+  favKbd(){
+    const rows = document.querySelectorAll('#lib-list .lib-row');
+    if(this.kbd < 0 || !rows[this.kbd]) return false;
+    const id = rows[this.kbd].getAttribute('data-id');
+    if(!id) return false;
+    this.toggleFav(id);
+    return true;
+  },
+
   render(){ this.renderNav(); this.renderCrumb(); this.renderList(); this.paintFav(); },
 
   /* ================= 打开 / 关闭 ================= */
   openPanel(){
     const hadBgm = (typeof playing !== 'undefined') && playing;
+    this._retFocus = document.activeElement;
     this.hushBgm();
     this.ensureAudio();
     openLayer('#lib-layer');
     this.open = true;
     this.render();
+    this.paintMini();
     if(hadBgm){
       this.note('场景音乐已先暂停，关掉音乐库时会接着放。', false);
       clearTimeout(this._noteT);
@@ -7028,12 +7300,18 @@ const Lib = {
     }
     const act = document.querySelector('#lib-list .lib-row.active');
     if(act && act.scrollIntoView) act.scrollIntoView({ block:'nearest' });
+    /* 焦点进到面板里：方向键可直接选曲，读屏也能读到「音乐库」 */
+    const dlg = document.querySelector('#lib-layer .dialog.lib');
+    if(dlg && dlg.focus){ try{ dlg.focus({ preventScroll:true }); }catch(e){ try{ dlg.focus(); }catch(_e){} } }
   },
   closePanel(){
     this.closeSheet();
     closeLayer('#lib-layer');
     this.open = false;
     this.saveLast();
+    this.paintMini();
+    const rf = this._retFocus; this._retFocus = null;
+    if(rf && rf.focus && document.body.contains(rf)){ try{ rf.focus({ preventScroll:true }); }catch(e){} }
     this.resumeBgm();
   },
   /* 音乐库与场景音乐互斥：一进库就把背景音乐停掉，
@@ -7490,6 +7768,8 @@ const Lib = {
     }
     this.paintFav();
     this.paintSleep();
+    this.paintQueue();
+    this.paintMini();
     const c = $('#lp-cur'); if(c) c.textContent = libFmt(this.posNow());
     const total = (this.plan && this.plan.loopSec) || (this.cur ? libPlan(this.cur).loopSec : 0);
     this.paintProgress(total ? this.posNow() / total : 0);
@@ -7578,17 +7858,19 @@ const Lib = {
     this._uiAt = now;
     this.sleepTick();
     this.paintProgress(this.pos / L);
+    const mf = $('#lm-fill2'); if(mf) mf.style.width = Math.min(100, this.pos / L * 100) + '%';
     const c = $('#lp-cur'); if(c) c.textContent = libFmt(this.pos);
   },
 
   playFrom(id){
-    this._queue = this.queue();
+    const ids = this.filtered().map(t=> t.id);
+    this.setQueue(ids.indexOf(id) >= 0 ? ids : null, this.viewName());
     this.select(id);
   },
   playAll(){
     const items = this.filtered();
     if(!items.length) return;
-    this._queue = items.map(t=> t.id);
+    this.setQueue(items.map(t=> t.id), this.viewName());
     this.select(items[0].id, true);
   },
   select(id, force){
@@ -7599,6 +7881,7 @@ const Lib = {
     this.hushBgm();
     this.killAudio();
     this.cur = t; this.plan = null; this.err = ''; this.pos = 0; this.state = 'loading';
+    this._touched = true;
     this.sync();
     clearTimeout(this.loadT);
     const wait = this._fast ? 16 : 240;
@@ -7767,6 +8050,7 @@ function wireLibrary(){
     if(!btn) return;
     const act = btn.getAttribute('data-act');
     if(act === 'playall') Lib.playAll();
+    else if(act === 'shuffle') Lib.shufflePlay();
     else if(act === 'addtracks') Lib.openAddTracks();
     else if(act === 'rename') Lib.openPlEditor(Lib.browseKey());
     else if(act === 'delpl') Lib.openPlEditor(Lib.browseKey(), true);
@@ -7780,6 +8064,9 @@ function wireLibrary(){
   const lp = $('#lp-loop'); if(lp) lp.onclick = ()=> Lib.cycleMode();
   const lf = $('#lp-fav'); if(lf) lf.onclick = ()=>{ if(Lib.cur) Lib.toggleFav(Lib.cur.id); };
   const ls = $('#lp-sleep'); if(ls) ls.onclick = ()=> Lib.openSleepSheet();
+  const lq = $('#lp-queue'); if(lq) lq.onclick = ()=> Lib.openQueue();
+  const lmo = $('#lm-open'); if(lmo) lmo.onclick = ()=> openLibrary();
+  const lmt = $('#lm-toggle'); if(lmt) lmt.onclick = ()=> Lib.toggle();
   const li = $('#lp-info');
   if(li){
     li.onclick = ()=>{ if(Lib.cur) Lib.openInfo(Lib.cur.id); };
@@ -7811,6 +8098,12 @@ function wireLibrary(){
   document.addEventListener('visibilitychange', ()=>{
     if(!document.hidden && Lib.state === 'playing') Lib.pump();
   });
+  /* 屏幕尺寸变化后迷你条要重新贴到控制台上方 */
+  let _miniT = 0;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(_miniT);
+    _miniT = setTimeout(()=> Lib.paintMini(), 120);
+  });
 
   document.addEventListener('keydown', e=>{
     if(e.key === 'Escape'){
@@ -7825,6 +8118,9 @@ function wireLibrary(){
     if(e.key === ' '){ e.preventDefault(); Lib.toggle(); }
     else if(e.key === 'ArrowRight'){ e.preventDefault(); Lib.next(1); }
     else if(e.key === 'ArrowLeft'){ e.preventDefault(); Lib.prev(); }
+    else if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); Lib.moveKbd(e.key === 'ArrowDown' ? 1 : -1); }
+    else if(e.key === 'Enter'){ Lib.playKbd(); }
+    else if(e.key === 'f' || e.key === 'F'){ Lib.favKbd(); }
   });
 }
 wireLibrary();
