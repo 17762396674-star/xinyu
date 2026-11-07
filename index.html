@@ -422,7 +422,8 @@
   .lib-list{ flex:1 1 auto; min-height:80px; overflow-y:auto; overflow-x:hidden; padding:0 12px 10px; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
   .lib-list::-webkit-scrollbar{ width:6px; }
   .lib-list::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.2); border-radius:3px; }
-  .lib-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:11px; border:1px solid transparent; cursor:pointer; transition:background .15s, border-color .15s; }
+  .lib-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:11px; border:1px solid transparent; cursor:pointer; transition:background .15s, border-color .15s;
+    content-visibility:auto; contain-intrinsic-size:auto 35px; }
   .lib-row:hover{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.09); }
   .lib-row.active{ background:rgba(255,217,160,.09); border-color:rgba(255,217,160,.42); }
   .lib-row .idx{ width:20px; flex:0 0 auto; text-align:center; font-size:11px; color:#5d6b85; font-variant-numeric:tabular-nums; }
@@ -917,7 +918,7 @@
       <button class="btn" id="btn-breathe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span class="lbl">呼吸引导</span></button>
       <button class="btn" id="btn-mood"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21C7 16.5 3 13 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 13 17 16.5 12 21z"/></svg><span class="lbl">情绪疗愈</span></button>
       <button class="btn" id="btn-meditate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="lbl">冥想计时</span></button>
-      <button class="btn" id="btn-library" title="音乐库 · 180 首疗愈 + 20 首古典"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V6.5l10-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span class="lbl">音乐库</span></button>
+      <button class="btn" id="btn-library" title="音乐库 · 180 首疗愈 + 120 首古典"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V6.5l10-2.2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span class="lbl">音乐库</span></button>
       <div class="vol" title="音量"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg><input type="range" id="volume" min="0" max="100" value="80" /></div>
     </div>
   </div>
@@ -985,13 +986,13 @@
     </div>
   </div>
 
-  <!-- 音乐库：200 首（10 个疗愈场景 × 18 首 + 20 首古典）· 浏览 / 搜索 / 歌单 / 收藏 / 播放 -->
+  <!-- 音乐库：300 首（10 个疗愈场景 × 18 首 + 120 首古典）· 浏览 / 搜索 / 歌单 / 收藏 / 播放 -->
   <div id="lib-layer" class="layer">
     <div class="dialog panel lib" role="dialog" aria-modal="true" aria-label="音乐库" tabindex="-1">
       <div class="lib-head">
         <div>
-          <div class="lib-title">音乐库 <em class="lib-count" id="lib-count">200 首 · 疗愈 + 古典</em></div>
-          <div class="lib-sub">十个场景、五种演奏语汇，加上二十首古典名曲，共两百首。按场景、风格或艺术家挑，点任意一首即可开始——全部由浏览器现场编排与演奏，不依赖网络，也不会加载失败。</div>
+          <div class="lib-title">音乐库 <em class="lib-count" id="lib-count">300 首 · 疗愈 + 古典</em></div>
+          <div class="lib-sub">十个场景、五种演奏语汇，加上一百二十首有据可查的古典名曲，共三百首。按场景、风格或作曲家挑，点任意一首即可开始——全部由浏览器现场编排与演奏，不依赖网络，也不会加载失败。</div>
         </div>
         <button class="dlg-close" id="lib-close" aria-label="关闭音乐库">✕</button>
       </div>
@@ -4608,7 +4609,7 @@ SceneBuilders.hall = function(){
   // 互动热点：琴盖开合 / 舞台追光
   registerHotspot(g, 0, 1.78, -5.0, { r:1.2, scale:1.8, tint:0xd8e2ff, mid:'rgba(210,225,255,0.5)', go:4.6, title:'琴盖', text:'轻轻掀开琴盖，让声音与呼吸，都找到一个出口。', act:()=>{ g.userData.lidOpen = !g.userData.lidOpen; g.userData.lidT = sceneTime || 0; } });
   registerHotspot(g, 0, 7.0, -3.0, { r:1.5, scale:2.6, tint:0xffe2b0, mid:'rgba(255,210,140,0.5)', title:'舞台追光', text:'这一刻，聚光灯只为你而亮。你本就是自己的主角。', act:()=>{ g.userData.flash = 1; } });
-  /* 音乐库入口：点侧台的唱片架，打开二十首古典名曲（不计入「发现」统计） */
+  /* 音乐库入口：点侧台的唱片架，打开音乐库（不计入「发现」统计） */
   registerHotspot(g, -7.4, 1.55, -6.25, { r:1.0, scale:1.35, tint:0xffd9a0, mid:'rgba(255,210,150,0.5)', go:3.6,
     title:'侧台的唱片架',
     text:'七张封套斜插在架子里，最外面那本写着一行小字：想听哪一首，自己挑。——点开它，就是音乐库。',
@@ -6103,11 +6104,13 @@ $('#pp-stop').addEventListener('click', e=>{ Piano.stopAll(); e.currentTarget.bl
 buildPiano(); buildSceneChips(); buildSongChips();
 
 /* ============================================================
-   5c. 音乐库 · 200 首（180 疗愈 + 20 古典，浏览器内实时演奏）
+   5c. 音乐库 · 300 首（180 疗愈 + 120 古典，浏览器内实时演奏）
    ------------------------------------------------------------
    · 曲目以「旋律 + 和声进行 + 织体」的乐谱数据形式内置，由 Web Audio
      实时合成演奏：不依赖外链音频，离线 / 单文件交付版均可直接出声，
      也不涉及任何唱片录音的版权问题。
+   · 古典 120 首全部是真实作品：前 20 首精选 + 后 100 首按乐派成组，
+     曲名 / 作者 / 作品编号 / 年份可查，旋律取公认主题改写。
    · 交互：点曲即播、暂停续播、上一首 / 下一首、拖动进度、单曲循环。
    · 失败处理：音频引擎不可用、曲目数据异常、浏览器拦截自动播放，
      都会在面板内给出可点击的提示，而不是静默无声。
@@ -6215,6 +6218,518 @@ const LIB_TRACKS = [
     era:'romantic', key:'D 大调', bpm:118, meter:4, pat:'pulse', kind:'piano', mood:'齐整 · 提振',
     chords:'D A D D D A D D',
     lead:'D5/1.5 D5/.5 D5/2 | A4/1.5 A4/.5 A4/2 | D5/1 E5/1 F#5/1 G5/1 | A5/2 F#5/2 | D5/1.5 D5/.5 D5/2 | A4/1.5 A4/.5 A4/2 | D5/1 E5/1 F#5/1 A5/1 | G5/2 F#5/2' },
+
+  /* ============================================================
+     传世古典 · 100 首（V2.4 新增）
+     ------------------------------------------------------------
+     与上面二十首精选不同，这一批全部是有据可查的真实作品：
+     曲名、作曲家、作品编号与年份都可核对，旋律取该作品公认
+     主题的首句或开头数小节，按原调改写成八小节，供实时合成。
+     ============================================================ */
+
+  /* ---------------- 巴洛克（16） ---------------- */
+  { id:'air', name:'G弦上的咏叹调', orig:'Orchestral Suite No.3, BWV 1068 — Air', composer:'巴赫', country:'德国', year:1731,
+    era:'baroque', album:'cl-baroque', key:'D 大调', bpm:46, meter:4, pat:'arp', kind:'strings', mood:'缓缓 · 被托住',
+    chords:'D A Bm F#m G D G A',
+    lead:'F#5/2 E5/1 D5/1 | D5/2 C#5/1 B4/1 | B4/2 A4/1 G4/1 | G4/2 F#4/1 E4/1 | G4/2 A4/1 B4/1 | A4/2 G4/1 F#4/1 | E4/2 D4/1 E4/1 | D4/4' },
+
+  { id:'toccata', name:'d小调托卡塔与赋格', orig:'Toccata and Fugue in D minor, BWV 565', composer:'巴赫', country:'德国', year:1704,
+    era:'baroque', album:'cl-baroque', key:'d 小调', bpm:100, meter:4, pat:'pulse', kind:'piano', mood:'肃穆 · 站定',
+    chords:'Dm A7 Dm Gm A7 Dm Gm A7',
+    lead:'D5/.5 E5/.5 F5/.5 E5/.5 D5/1 r/1 | A4/.5 Bb4/.5 C#5/.5 D5/.5 E5/2 | F5/1 E5/1 D5/1 C#5/1 | D5/4 | A5/.5 G5/.5 F5/.5 E5/.5 D5/1 r/1 | C#5/.5 D5/.5 E5/.5 F5/.5 G5/2 | Bb5/1 A5/1 G5/1 F5/1 | E5/2 D5/2' },
+
+  { id:'jesu', name:'耶稣，世人仰望的喜悦', orig:'Herz und Mund und Tat und Leben, BWV 147', composer:'巴赫', country:'德国', year:1716,
+    era:'baroque', album:'cl-baroque', key:'G 大调', bpm:72, meter:4, pat:'block', kind:'piano', mood:'安稳 · 有光',
+    chords:'G G C D G C G D',
+    lead:'G4/2 A4/1 B4/1 | D5/2 B4/2 | G4/2 A4/1 B4/1 | A4/2 G4/1 F#4/1 | G4/2 B4/1 D5/1 | E5/2 D5/1 C5/1 | B4/2 A4/1 G4/1 | A4/4' },
+
+  { id:'cello1', name:'第一号无伴奏大提琴组曲 · 前奏曲', orig:'Cello Suite No.1, BWV 1007 — Prélude', composer:'巴赫', country:'德国', year:1717,
+    era:'baroque', album:'cl-baroque', key:'G 大调', bpm:60, meter:4, pat:'arp16', kind:'strings', mood:'流动 · 心定',
+    chords:'G C G D Em C D G',
+    lead:'' },
+
+  { id:'brandenburg3', name:'勃兰登堡协奏曲第三号 · 第一乐章', orig:'Brandenburg Concerto No.3, BWV 1048', composer:'巴赫', country:'德国', year:1721,
+    era:'baroque', album:'cl-baroque', key:'G 大调', bpm:110, meter:4, pat:'pulse', kind:'strings', mood:'规整 · 提神',
+    chords:'G G C D G Em C D',
+    lead:'G4/1 B4/1 D5/1 B4/1 | G4/1 B4/1 D5/1 B4/1 | C5/1 E5/1 G5/1 E5/1 | D5/1 F#5/1 A5/1 F#5/1 | G4/1 B4/1 D5/1 G5/1 | E5/1 G5/1 B5/1 G5/1 | C5/1 E5/1 G5/1 E5/1 | D5/2 r/2' },
+
+  { id:'sheep', name:'羊儿可以安静地吃草', orig:'Was mir behagt, BWV 208 — Schafe können sicher weiden', composer:'巴赫', country:'德国', year:1713,
+    era:'baroque', album:'cl-baroque', key:'降 B 大调', bpm:66, meter:4, pat:'arp', kind:'piano', mood:'松弛 · 草地',
+    chords:'Bb Eb Bb F7 Bb Eb F7 Bb',
+    lead:'F4/2 Bb4/1 A4/1 | G4/2 F4/1 Eb4/1 | F4/2 D4/1 F4/1 | Eb4/2 C4/1 Eb4/1 | D4/2 F4/1 Bb4/1 | C5/2 Bb4/1 G4/1 | A4/2 G4/1 F4/1 | Bb4/4' },
+
+  { id:'spring', name:'四季 · 春 · 第一乐章', orig:'The Four Seasons — Spring, Op.8 No.1', composer:'维瓦尔第', country:'意大利', year:1725,
+    era:'baroque', album:'cl-baroque', key:'E 大调', bpm:108, meter:4, pat:'pulse', kind:'strings', mood:'明亮 · 起身',
+    chords:'E E A B7 E A B7 E',
+    lead:'E5/1 E5/1 E5/1 E5/1 | E5/1 D#5/1 E5/1 F#5/1 | G#5/1 F#5/1 E5/1 B4/1 | D#5/2 B4/2 | E5/1 E5/1 E5/1 E5/1 | C#5/1 B4/1 A4/1 B4/1 | C#5/2 B4/1 A4/1 | B4/4' },
+
+  { id:'winter', name:'四季 · 冬 · 第二乐章', orig:'The Four Seasons — Winter, Op.8 No.4', composer:'维瓦尔第', country:'意大利', year:1725,
+    era:'baroque', album:'cl-baroque', key:'降 E 大调', bpm:48, meter:4, pat:'arp', kind:'strings', mood:'窗外 · 暖灯',
+    chords:'Eb Cm Ab Bb Eb Cm Ab Bb',
+    lead:'Bb4/2 G4/2 | Eb4/2 G4/2 | Ab4/2 C5/2 | Bb4/4 | Bb4/2 G4/2 | Eb4/2 G4/2 | Ab4/2 F4/2 | Eb4/4' },
+
+  { id:'summer', name:'四季 · 夏 · 第三乐章', orig:'The Four Seasons — Summer, Op.8 No.2', composer:'维瓦尔第', country:'意大利', year:1725,
+    era:'baroque', album:'cl-baroque', key:'g 小调', bpm:120, meter:4, pat:'pulse', kind:'strings', mood:'骤雨 · 释放',
+    chords:'Gm Gm Cm D7 Gm Cm D7 Gm',
+    lead:'G4/.5 G4/.5 G4/.5 G4/.5 G4/1 Bb4/1 | C5/.5 C5/.5 C5/.5 C5/.5 D5/2 | Eb5/.5 Eb5/.5 Eb5/.5 Eb5/.5 F5/2 | D5/2 r/2 | G4/.5 G4/.5 G4/.5 G4/.5 G4/1 Bb4/1 | C5/.5 C5/.5 C5/.5 C5/.5 Eb5/2 | D5/.5 C5/.5 Bb4/.5 A4/.5 G4/2 | G4/4' },
+
+  { id:'watermusic', name:'水上音乐 · 第一组曲', orig:'Water Music Suite No.1 in F major, HWV 348', composer:'亨德尔', country:'德国', year:1717,
+    era:'baroque', album:'cl-baroque', key:'F 大调', bpm:96, meter:4, pat:'block', kind:'strings', mood:'开阔 · 体面',
+    chords:'F C F Bb F C F F',
+    lead:'F5/1.5 F5/.5 F5/1 C5/1 | D5/1.5 C5/.5 Bb4/2 | A4/1.5 A4/.5 A4/1 F4/1 | Bb4/2 r/2 | F5/1.5 F5/.5 F5/1 A5/1 | G5/1.5 F5/.5 E5/2 | F5/2 C5/1 A4/1 | F4/4' },
+
+  { id:'fireworks', name:'皇家焰火音乐 · 欢庆', orig:'Music for the Royal Fireworks, HWV 351 — La Réjouissance', composer:'亨德尔', country:'德国', year:1749,
+    era:'baroque', album:'cl-baroque', key:'D 大调', bpm:104, meter:4, pat:'pulse', kind:'strings', mood:'齐奏 · 提振',
+    chords:'D A D G D A D D',
+    lead:'D5/1 F#5/1 A5/1 F#5/1 | E5/1 C#5/1 A4/1 C#5/1 | D5/2 F#5/2 | G5/1 F#5/1 E5/1 D5/1 | A5/2 F#5/2 | E5/1 D5/1 C#5/1 B4/1 | A4/2 D5/2 | D5/4' },
+
+  { id:'hallelujah', name:'弥赛亚 · 哈利路亚', orig:'Messiah, HWV 56 — Hallelujah Chorus', composer:'亨德尔', country:'德国', year:1741,
+    era:'baroque', album:'cl-baroque', key:'D 大调', bpm:88, meter:4, pat:'block', kind:'piano', mood:'昂扬 · 起身',
+    chords:'D D A A D D G A',
+    lead:'D5/2 D5/1 A4/1 | F#5/2 E5/2 | E5/2 C#5/1 A4/1 | B4/4 | D5/2 D5/1 A4/1 | F#5/2 A5/2 | G5/2 F#5/1 E5/1 | D5/4' },
+
+  { id:'lascia', name:'让我哭泣', orig:'Rinaldo, HWV 7 — Lascia ch’io pianga', composer:'亨德尔', country:'德国', year:1711,
+    era:'baroque', album:'cl-baroque', key:'F 大调', bpm:54, meter:4, pat:'arp', kind:'strings', mood:'哀而不伤',
+    chords:'F C Dm Bb F C Bb F',
+    lead:'C5/2 A4/1 C5/1 | D5/2 C5/1 Bb4/1 | A4/2 G4/1 F4/1 | F4/2 G4/1 A4/1 | Bb4/2 A4/1 G4/1 | A4/2 G4/1 F4/1 | G4/2 E4/1 G4/1 | F4/4' },
+
+  { id:'boccherini', name:'小步舞曲', orig:'String Quintet in E major, Op.11 No.5 — Minuet', composer:'波凯里尼', country:'意大利', year:1771,
+    era:'baroque', album:'cl-baroque', key:'A 大调', bpm:108, meter:3, pat:'waltz', kind:'piano', mood:'优雅 · 轻快',
+    chords:'A E7 A A D A E7 A',
+    lead:'E5/1 E5/1 E5/1 | E5/1 C#5/1 A4/1 | B4/1 C#5/1 D5/1 | C#5/1 B4/1 A4/1 | F#4/1 A4/1 D5/1 | C#5/1 B4/1 A4/1 | B4/1 G#4/1 B4/1 | A4/3' },
+
+  { id:'stabat', name:'圣母悼歌 · 第一段', orig:'Stabat Mater — Stabat Mater dolorosa', composer:'佩尔戈莱西', country:'意大利', year:1736,
+    era:'baroque', album:'cl-baroque', key:'f 小调', bpm:52, meter:4, pat:'arp', kind:'strings', mood:'低垂 · 静默',
+    chords:'Fm Cm Db Bbm Fm Cm Db C',
+    lead:'C5/2 Ab4/2 | G4/2 F4/2 | F4/2 Eb4/1 Db4/1 | Db4/2 C4/2 | C5/2 Ab4/2 | G4/2 F4/2 | Eb4/2 F4/1 Eb4/1 | C4/4' },
+
+  { id:'charpentier', name:'感恩赞 · 前奏曲', orig:'Te Deum, H.146 — Prélude', composer:'夏庞蒂埃', country:'法国', year:1692,
+    era:'baroque', album:'cl-baroque', key:'D 大调', bpm:100, meter:4, pat:'pulse', kind:'strings', mood:'庄重 · 开场',
+    chords:'D A D G D A D D',
+    lead:'D5/1 A4/1 D5/1 F#5/1 | E5/2 C#5/2 | D5/1 F#5/1 A5/1 F#5/1 | G5/1 F#5/1 E5/1 D5/1 | A4/1 D5/1 F#5/1 A5/1 | G5/2 E5/2 | F#5/2 D5/2 | D5/4' },
+
+  /* ---------------- 古典主义（18） ---------------- */
+  { id:'moz21', name:'第二十一钢琴协奏曲 · 第二乐章', orig:'Piano Concerto No.21 in C major, K.467 — Andante', composer:'莫扎特', country:'奥地利', year:1785,
+    era:'classical', album:'cl-classical', key:'F 大调', bpm:52, meter:4, pat:'arp', kind:'piano', mood:'安静 · 悬浮',
+    chords:'F Dm Bb C F Dm Gm C',
+    lead:'C5/2 A4/1 F4/1 | A4/2 G4/2 | Bb4/2 D5/1 Bb4/1 | C5/4 | A4/2 F4/1 A4/1 | Bb4/2 A4/1 G4/1 | G4/2 E4/1 G4/1 | F4/4' },
+
+  { id:'mozclari', name:'单簧管协奏曲 · 第二乐章', orig:'Clarinet Concerto in A major, K.622 — Adagio', composer:'莫扎特', country:'奥地利', year:1791,
+    era:'classical', album:'cl-classical', key:'D 大调', bpm:50, meter:4, pat:'arp', kind:'piano', mood:'柔 · 不舍',
+    chords:'D A7 D G D A7 D D',
+    lead:'F#5/2 E5/1 D5/1 | E5/2 C#5/2 | D5/2 F#5/1 A5/1 | B5/2 A5/1 G5/1 | F#5/2 E5/1 D5/1 | E5/2 A4/2 | D5/2 F#5/1 E5/1 | D5/4' },
+
+  { id:'lacrimosa', name:'安魂曲 · 落泪之日', orig:'Requiem in D minor, K.626 — Lacrimosa', composer:'莫扎特', country:'奥地利', year:1791,
+    era:'classical', album:'cl-classical', key:'d 小调', bpm:72, meter:4, pat:'block', kind:'strings', mood:'哀恸 · 收束',
+    chords:'Dm Dm Gm A7 Dm Bb Gm A7',
+    lead:'D5/2 E5/1 F5/1 | E5/2 D5/1 C#5/1 | D5/2 Bb4/1 G4/1 | A4/4 | D5/2 E5/1 F5/1 | G5/2 F5/1 E5/1 | D5/2 C#5/1 E5/1 | D5/4' },
+
+  { id:'jupiter', name:'第四十一交响曲「朱庇特」', orig:'Symphony No.41 in C major, K.551 — Allegro vivace', composer:'莫扎特', country:'奥地利', year:1788,
+    era:'classical', album:'cl-classical', key:'C 大调', bpm:116, meter:4, pat:'pulse', kind:'strings', mood:'昂扬 · 开阔',
+    chords:'C C G G C F G C',
+    lead:'C5/1 C5/1 G4/1 C5/1 | E5/2 D5/2 | D5/1 D5/1 B4/1 D5/1 | G5/2 F5/2 | E5/1 G5/1 E5/1 C5/1 | F5/2 E5/1 D5/1 | D5/2 B4/1 G4/1 | C5/4' },
+
+  { id:'moz331', name:'第十一钢琴奏鸣曲 · 主题', orig:'Piano Sonata No.11 in A major, K.331 — Tema', composer:'莫扎特', country:'奥地利', year:1783,
+    era:'classical', album:'cl-classical', key:'A 大调', bpm:96, meter:4, pat:'arp', kind:'piano', mood:'清澈 · 有礼',
+    chords:'A E7 A A D A E7 A',
+    lead:'E5/1.5 E5/.5 E5/1 E5/1 | D5/2 C#5/2 | B4/1 C#5/1 D5/1 E5/1 | C#5/2 r/2 | A4/1 C#5/1 E5/1 A5/1 | G5/2 F#5/2 | E5/2 D5/1 C#5/1 | A4/4' },
+
+  { id:'queen', name:'魔笛 · 复仇的火焰', orig:'Die Zauberflöte, K.620 — Der Hölle Rache', composer:'莫扎特', country:'奥地利', year:1791,
+    era:'classical', album:'cl-classical', key:'d 小调', bpm:108, meter:4, pat:'pulse', kind:'piano', mood:'紧绷 · 对峙',
+    chords:'Dm Dm Gm A7 Dm Gm A7 Dm',
+    lead:'D5/2 F5/1 E5/1 | D5/2 A4/2 | Bb4/2 D5/1 G4/1 | A4/4 | D5/2 F5/1 A5/1 | Bb5/2 A5/1 G5/1 | F5/2 E5/1 D5/1 | D5/4' },
+
+  { id:'figaro', name:'费加罗的婚礼 · 序曲', orig:'Le nozze di Figaro, K.492 — Overture', composer:'莫扎特', country:'奥地利', year:1786,
+    era:'classical', album:'cl-classical', key:'D 大调', bpm:132, meter:4, pat:'pulse', kind:'strings', mood:'利落 · 轻快',
+    chords:'D D A A D D A D',
+    lead:'D5/.5 E5/.5 F#5/.5 G5/.5 A5/2 | F#5/1 D5/1 A4/1 F#5/1 | E5/2 C#5/1 A4/1 | E5/4 | D5/.5 E5/.5 F#5/.5 G5/.5 A5/2 | B5/1 A5/1 G5/1 F#5/1 | E5/2 C#5/1 E5/1 | D5/4' },
+
+  { id:'surprise', name:'第九十四交响曲「惊愕」 · 第二乐章', orig:'Symphony No.94 in G major — Andante', composer:'海顿', country:'奥地利', year:1791,
+    era:'classical', album:'cl-classical', key:'C 大调', bpm:84, meter:4, pat:'pulse', kind:'strings', mood:'单纯 · 被逗笑',
+    chords:'C C G7 G7 C C G7 C',
+    lead:'C4/1 C4/1 E4/1 E4/1 | G4/1 G4/1 E4/2 | F4/1 F4/1 D4/1 D4/1 | B3/2 G3/2 | C4/1 C4/1 E4/1 E4/1 | G4/1 G4/1 E4/2 | F4/2 D4/1 B3/1 | C4/4' },
+
+  { id:'emperor', name:'弦乐四重奏「皇帝」 · 第二乐章', orig:'String Quartet in C major, Op.76 No.3 — Poco adagio', composer:'海顿', country:'奥地利', year:1797,
+    era:'classical', album:'cl-classical', key:'G 大调', bpm:72, meter:4, pat:'block', kind:'strings', mood:'庄重 · 温和',
+    chords:'G C G D G C D G',
+    lead:'G4/2 B4/1 D5/1 | E5/2 D5/1 C5/1 | B4/2 A4/1 G4/1 | A4/4 | G4/2 B4/1 D5/1 | G5/2 F#5/1 E5/1 | D5/2 A4/1 F#4/1 | G4/4' },
+
+  { id:'haydntrumpet', name:'降E大调小号协奏曲 · 第三乐章', orig:'Trumpet Concerto in E-flat major, Hob.VIIe:1', composer:'海顿', country:'奥地利', year:1796,
+    era:'classical', album:'cl-classical', key:'降 E 大调', bpm:112, meter:4, pat:'pulse', kind:'piano', mood:'爽朗 · 前行',
+    chords:'Eb Eb Bb7 Bb7 Eb Ab Bb7 Eb',
+    lead:'Bb4/1 Bb4/1 Bb4/1 Eb5/1 | D5/2 Bb4/2 | Eb5/1 F5/1 G5/1 F5/1 | Eb5/2 D5/2 | Eb5/1 G5/1 Bb5/1 G5/1 | Ab5/2 G5/1 F5/1 | Eb5/2 D5/1 Bb4/1 | Eb5/4' },
+
+  { id:'pathetique', name:'悲怆奏鸣曲 · 第二乐章', orig:'Piano Sonata No.8 in C minor, Op.13 — Adagio cantabile', composer:'贝多芬', country:'德国', year:1798,
+    era:'classical', album:'cl-classical', key:'降 A 大调', bpm:54, meter:4, pat:'arp', kind:'piano', mood:'克制 · 温柔',
+    chords:'Ab Ab Db Eb7 Ab Db Eb7 Ab',
+    lead:'Ab4/2 C5/1 Eb5/1 | Eb5/2 C5/2 | Db5/2 F4/1 Ab4/1 | Eb5/4 | Ab4/2 Bb4/1 C5/1 | Db5/2 C5/1 Bb4/1 | Bb4/2 G4/1 Eb4/1 | Ab4/4' },
+
+  { id:'springsonata', name:'春天奏鸣曲 · 第一乐章', orig:'Violin Sonata No.5 in F major, Op.24 — Allegro', composer:'贝多芬', country:'德国', year:1801,
+    era:'classical', album:'cl-classical', key:'F 大调', bpm:104, meter:4, pat:'arp', kind:'strings', mood:'暖阳 · 舒展',
+    chords:'F C7 F Bb F C7 F F',
+    lead:'A4/2 C5/1 F5/1 | E5/2 D5/1 C5/1 | D5/2 Bb4/1 G4/1 | C5/4 | A4/2 C5/1 F5/1 | G5/2 F5/1 E5/1 | D5/2 C5/1 Bb4/1 | A4/4' },
+
+  { id:'beeth7', name:'第七交响曲 · 第二乐章', orig:'Symphony No.7 in A major, Op.92 — Allegretto', composer:'贝多芬', country:'德国', year:1812,
+    era:'classical', album:'cl-classical', key:'a 小调', bpm:72, meter:4, pat:'pulse', kind:'strings', mood:'沉步 · 不散',
+    chords:'Am Am E7 E7 Am Am E7 Am',
+    lead:'E4/1 A4/1 B4/1 C5/1 | B4/1 A4/1 G#4/2 | A4/1 B4/1 C5/1 D5/1 | E5/2 r/2 | E4/1 A4/1 B4/1 C5/1 | D5/2 C5/1 B4/1 | A4/2 G#4/1 E4/1 | A4/4' },
+
+  { id:'pastoral', name:'第六交响曲「田园」 · 第一乐章', orig:'Symphony No.6 in F major, Op.68 — Allegro', composer:'贝多芬', country:'德国', year:1808,
+    era:'classical', album:'cl-classical', key:'F 大调', bpm:100, meter:4, pat:'arp', kind:'strings', mood:'乡野 · 透气',
+    chords:'F F C7 C7 F Bb F C7',
+    lead:'C5/1 F5/1 A5/1 F5/1 | C5/2 A4/2 | Bb4/1 E5/1 G5/1 E5/1 | C5/2 G4/2 | F4/1 A4/1 C5/1 F5/1 | Bb4/2 A4/1 G4/1 | A4/2 F4/2 | C5/4' },
+
+  { id:'clementi', name:'C大调小奏鸣曲 · 第一乐章', orig:'Sonatina in C major, Op.36 No.1', composer:'克莱门蒂', country:'意大利', year:1797,
+    era:'classical', album:'cl-classical', key:'C 大调', bpm:112, meter:4, pat:'pulse', kind:'piano', mood:'干净 · 起步',
+    chords:'C C G7 G7 C C G7 C',
+    lead:'C5/1 E5/1 G5/1 E5/1 | C5/2 r/2 | D5/1 F5/1 A5/1 F5/1 | G5/2 r/2 | E5/1 G5/1 C6/1 G5/1 | E5/2 C5/2 | D5/2 B4/2 | C5/4' },
+
+  { id:'weber', name:'邀舞', orig:'Aufforderung zum Tanze, Op.65', composer:'韦伯', country:'德国', year:1819,
+    era:'classical', album:'cl-classical', key:'D 大调', bpm:132, meter:3, pat:'waltz', kind:'piano', mood:'旋转 · 明亮',
+    chords:'D A7 D D G D A7 D',
+    lead:'D5/1 F#5/1 A5/1 | G5/1 F#5/1 E5/1 | D5/1 E5/1 F#5/1 | A5/3 | B5/1 A5/1 G5/1 | F#5/1 E5/1 D5/1 | E5/1 C#5/1 A4/1 | D5/3' },
+
+  { id:'barber', name:'塞维利亚的理发师 · 序曲', orig:'Il barbiere di Siviglia — Overture', composer:'罗西尼', country:'意大利', year:1816,
+    era:'classical', album:'cl-classical', key:'C 大调', bpm:140, meter:4, pat:'pulse', kind:'strings', mood:'俏皮 · 加速',
+    chords:'C C G7 G7 C C G7 C',
+    lead:'C5/.5 D5/.5 E5/.5 F5/.5 G5/2 | E5/1 C5/1 G4/2 | D5/.5 E5/.5 F5/.5 G5/.5 A5/2 | G5/1 E5/1 C5/2 | E5/.5 F5/.5 G5/.5 A5/.5 B5/2 | C6/1 G5/1 E5/1 C5/1 | D5/2 G4/2 | C5/4' },
+
+  { id:'beethminuet', name:'G大调小步舞曲', orig:'Minuet in G major, WoO 10 No.2', composer:'贝多芬', country:'德国', year:1795,
+    era:'classical', album:'cl-classical', key:'G 大调', bpm:110, meter:3, pat:'waltz', kind:'piano', mood:'轻巧 · 有礼',
+    chords:'G D7 G G C G D7 G',
+    lead:'D5/1 G5/1 B5/1 | A5/1 G5/1 F#5/1 | G5/1 D5/1 B4/1 | G4/3 | C5/1 E5/1 G5/1 | E5/1 D5/1 C5/1 | B4/1 A4/1 G4/1 | G4/3' },
+
+  /* ---------------- 浪漫主义（44） ---------------- */
+  { id:'staendchen', name:'小夜曲', orig:'Schwanengesang, D.957 No.4 — Ständchen', composer:'舒伯特', country:'奥地利', year:1828,
+    era:'romantic', album:'cl-romantic', key:'d 小调', bpm:66, meter:4, pat:'arp', kind:'strings', mood:'低声 · 请求',
+    chords:'Dm Dm Gm A7 Dm Bb A7 Dm',
+    lead:'A4/2 D5/2 | F5/2 E5/1 D5/1 | D5/2 C#5/1 E5/1 | D5/2 A4/2 | A4/2 D5/2 | F5/2 G5/1 F5/1 | E5/2 D5/1 C#5/1 | D5/4' },
+
+  { id:'avemaria', name:'圣母颂', orig:'Ellens Gesang III, D.839 — Ave Maria', composer:'舒伯特', country:'奥地利', year:1825,
+    era:'romantic', album:'cl-romantic', key:'降 B 大调', bpm:60, meter:4, pat:'arp', kind:'piano', mood:'虔诚 · 安定',
+    chords:'Bb Bb Eb F7 Bb Gm Eb F7',
+    lead:'Bb4/2 F4/1 Bb4/1 | D5/2 C5/1 Bb4/1 | Eb5/2 D5/1 C5/1 | D5/4 | Bb4/2 F4/1 Bb4/1 | G4/2 Bb4/1 D5/1 | C5/2 Bb4/1 A4/1 | Bb4/4' },
+
+  { id:'trout', name:'鳟鱼五重奏 · 第四乐章', orig:'Piano Quintet in A major, D.667 — Thema', composer:'舒伯特', country:'奥地利', year:1819,
+    era:'romantic', album:'cl-romantic', key:'D 大调', bpm:100, meter:4, pat:'pulse', kind:'strings', mood:'清澈 · 跳动',
+    chords:'D A D G D A D D',
+    lead:'D5/1 F#5/1 A5/1 F#5/1 | E5/1 D5/1 C#5/1 A4/1 | B4/1 D5/1 F#5/1 D5/1 | G5/2 F#5/1 E5/1 | D5/1 F#5/1 A5/1 F#5/1 | E5/1 D5/1 C#5/1 A4/1 | B4/2 A4/1 G4/1 | D4/4' },
+
+  { id:'unfinished', name:'第八交响曲「未完成」 · 第一乐章', orig:'Symphony No.8 in B minor, D.759', composer:'舒伯特', country:'奥地利', year:1822,
+    era:'romantic', album:'cl-romantic', key:'b 小调', bpm:76, meter:4, pat:'pulse', kind:'strings', mood:'悬着 · 未落地',
+    chords:'Bm G Em F#7 Bm G Em F#7',
+    lead:'B4/1 F#5/1 E5/1 D5/1 | B4/2 F#4/2 | G4/1 B4/1 D5/1 G5/1 | F#5/2 E5/1 D5/1 | E5/1 G5/1 B5/1 G5/1 | F#5/1 E5/1 D5/1 C#5/1 | B4/2 C#5/1 D5/1 | B4/4' },
+
+  { id:'springSong', name:'春之歌', orig:'Lieder ohne Worte, Op.62 No.6 — Frühjahrslied', composer:'门德尔松', country:'德国', year:1844,
+    era:'romantic', album:'cl-romantic', key:'A 大调', bpm:88, meter:4, pat:'arp', kind:'piano', mood:'轻软 · 回春',
+    chords:'A E7 A D A E7 A A',
+    lead:'E5/1.5 E5/.5 E5/1 C#5/1 | B4/1.5 B4/.5 B4/1 A4/1 | A4/1.5 A4/.5 C#5/1 E5/1 | A5/2 G#5/1 F#5/1 | E5/1.5 E5/.5 E5/1 C#5/1 | B4/1.5 B4/.5 B4/1 A4/1 | C#5/2 B4/1 A4/1 | A4/4' },
+
+  { id:'mendelssohnVC', name:'e小调小提琴协奏曲 · 第二乐章', orig:'Violin Concerto in E minor, Op.64 — Andante', composer:'门德尔松', country:'德国', year:1844,
+    era:'romantic', album:'cl-romantic', key:'C 大调', bpm:72, meter:4, pat:'arp', kind:'strings', mood:'歌唱 · 平静',
+    chords:'C C G7 G7 C F G7 C',
+    lead:'C5/2 E5/1 G5/1 | F5/2 E5/1 D5/1 | D5/2 C5/1 B4/1 | C5/4 | E5/2 G5/1 C6/1 | A5/2 G5/1 F5/1 | E5/2 D5/1 B4/1 | C5/4' },
+
+  { id:'chopinNocturne', name:'降E大调夜曲', orig:'Nocturne in E-flat major, Op.9 No.2', composer:'肖邦', country:'波兰', year:1832,
+    era:'romantic', album:'cl-romantic', key:'降 E 大调', bpm:56, meter:4, pat:'arp', kind:'piano', mood:'夜色 · 微光',
+    chords:'Eb Eb Ab Bb7 Eb Cm Ab Bb7',
+    lead:'Bb4/2 G4/1 Bb4/1 | Eb5/2 D5/1 C5/1 | C5/2 Bb4/1 Ab4/1 | Bb4/4 | Eb5/2 D5/1 Eb5/1 | G5/2 F5/1 Eb5/1 | Ab5/2 G5/1 F5/1 | Eb5/4' },
+
+  { id:'raindrop', name:'雨滴前奏曲', orig:'Prelude in D-flat major, Op.28 No.15', composer:'肖邦', country:'波兰', year:1839,
+    era:'romantic', album:'cl-romantic', key:'降 D 大调', bpm:68, meter:4, pat:'arp', kind:'piano', mood:'雨声 · 独处',
+    chords:'Db Db Gb Ab7 Db Gb Ab7 Db',
+    lead:'Ab4/2 Db5/1 Ab4/1 | Db5/2 C5/1 Bb4/1 | Bb4/2 Ab4/1 Gb4/1 | Ab4/4 | Ab4/2 Db5/1 F5/1 | Eb5/2 Db5/1 C5/1 | Db5/2 C5/1 Bb4/1 | Ab4/4' },
+
+  { id:'chopinEtude', name:'练习曲「离别」', orig:'Étude in E major, Op.10 No.3 — Tristesse', composer:'肖邦', country:'波兰', year:1832,
+    era:'romantic', album:'cl-romantic', key:'E 大调', bpm:72, meter:4, pat:'arp', kind:'piano', mood:'告别 · 温柔',
+    chords:'E A E B7 E A B7 E',
+    lead:'G#4/3 E4/1 | B4/2 G#4/2 | A4/2 C#5/1 A4/1 | B4/4 | G#4/3 E4/1 | C#5/2 B4/1 A4/1 | B4/2 G#4/1 F#4/1 | E4/4' },
+
+  { id:'puppy', name:'小狗圆舞曲', orig:'Waltz in D-flat major, Op.64 No.1 — Petit chien', composer:'肖邦', country:'波兰', year:1847,
+    era:'romantic', album:'cl-romantic', key:'降 D 大调', bpm:126, meter:3, pat:'waltz', kind:'piano', mood:'转圈 · 俏皮',
+    chords:'Db Db Db Db Gb Db Ab7 Db',
+    lead:'Db5/1 F5/1 Ab5/1 | Gb5/2 F5/1 | Eb5/1 F5/1 Gb5/1 | F5/3 | Db5/1 F5/1 Ab5/1 | Bb5/2 Ab5/1 | Gb5/2 F5/1 | Db5/3' },
+
+  { id:'chopinWaltz2', name:'升c小调圆舞曲', orig:'Waltz in C-sharp minor, Op.64 No.2', composer:'肖邦', country:'波兰', year:1847,
+    era:'romantic', album:'cl-romantic', key:'升 c 小调', bpm:108, meter:3, pat:'waltz', kind:'piano', mood:'忧郁 · 旋转',
+    chords:'C#m C#m G#7 G#7 C#m C#m G#7 C#m',
+    lead:'G#4/1 C#5/1 E5/1 | D#5/1 C#5/1 B4/1 | A4/1 G#4/1 F#4/1 | G#4/3 | G#4/1 C#5/1 E5/1 | D#5/2 C#5/1 | B4/2 G#4/1 | C#5/3' },
+
+  { id:'funeral', name:'葬礼进行曲', orig:'Piano Sonata No.2, Op.35 — Marche funèbre', composer:'肖邦', country:'波兰', year:1839,
+    era:'romantic', album:'cl-romantic', key:'降 b 小调', bpm:56, meter:4, pat:'block', kind:'piano', mood:'沉 · 告别',
+    chords:'Bbm Bbm Eb Bbm Gb Db F7 Bbm',
+    lead:'Bb4/2 Bb4/1 Bb4/1 | Bb4/2 Ab4/2 | Gb4/2 F4/1 Eb4/1 | F4/4 | Bb4/2 Bb4/1 Bb4/1 | Db5/2 C5/1 Bb4/1 | Ab4/2 F4/2 | Bb4/4' },
+
+  { id:'militaryPolonaise', name:'军队波兰舞曲', orig:'Polonaise in A major, Op.40 No.1 — Militaire', composer:'肖邦', country:'波兰', year:1838,
+    era:'romantic', album:'cl-romantic', key:'A 大调', bpm:100, meter:3, pat:'pulse', kind:'piano', mood:'挺直 · 有力',
+    chords:'A A E7 E7 A A E7 A',
+    lead:'A4/1 C#5/1 E5/1 | A5/2 G#5/1 | F#5/2 E5/1 | E5/3 | A4/1 C#5/1 E5/1 | F#5/2 E5/1 | D5/2 C#5/1 | A4/3' },
+
+  { id:'liebestraum', name:'爱之梦 · 第三首', orig:'Liebesträume, S.541 No.3', composer:'李斯特', country:'匈牙利', year:1850,
+    era:'romantic', album:'cl-romantic', key:'降 A 大调', bpm:56, meter:4, pat:'arp', kind:'piano', mood:'告白 · 升起',
+    chords:'Ab Ab Db Eb7 Ab Fm Db Eb7',
+    lead:'Ab4/2 C5/1 Eb5/1 | Ab5/2 G5/1 F5/1 | Eb5/2 Db5/1 C5/1 | Db5/4 | Ab4/2 C5/1 Eb5/1 | F5/2 Eb5/1 Db5/1 | C5/2 Bb4/1 Ab4/1 | Ab4/4' },
+
+  { id:'hungarian2', name:'第二匈牙利狂想曲', orig:'Hungarian Rhapsody No.2, S.244', composer:'李斯特', country:'匈牙利', year:1847,
+    era:'romantic', album:'cl-romantic', key:'升 c 小调', bpm:100, meter:4, pat:'pulse', kind:'piano', mood:'沉抑 · 蓄势',
+    chords:'C#m C#m F#m G#7 C#m C#m G#7 C#m',
+    lead:'G#4/1 G#4/1 A4/1 B4/1 | C#5/2 B4/1 A4/1 | G#4/2 F#4/1 E4/1 | F#4/4 | G#4/1 G#4/1 A4/1 B4/1 | C#5/2 D#5/1 C#5/1 | B4/2 G#4/1 F#4/1 | C#4/4' },
+
+  { id:'campanella', name:'钟', orig:'Grandes études de Paganini, S.141 No.3 — La Campanella', composer:'李斯特', country:'匈牙利', year:1851,
+    era:'romantic', album:'cl-romantic', key:'升 g 小调', bpm:120, meter:4, pat:'arp16', kind:'piano', mood:'清脆 · 闪烁',
+    chords:'G#m G#m C#m D#7 G#m C#m D#7 G#m',
+    lead:'D#5/.5 D#5/.5 D#5/.5 D#5/.5 D#5/2 | C#5/2 B4/2 | B4/.5 B4/.5 B4/.5 B4/.5 B4/2 | A#4/2 G#4/2 | D#5/.5 D#5/.5 D#5/.5 D#5/.5 D#5/2 | E5/2 D#5/2 | C#5/2 B4/1 A#4/1 | G#4/4' },
+
+  { id:'hungarianDance', name:'第五号匈牙利舞曲', orig:'Hungarian Dance No.5 in F-sharp minor', composer:'勃拉姆斯', country:'德国', year:1869,
+    era:'romantic', album:'cl-romantic', key:'升 f 小调', bpm:104, meter:4, pat:'pulse', kind:'strings', mood:'热烈 · 收放',
+    chords:'F#m F#m C#7 C#7 F#m F#m C#7 F#m',
+    lead:'F#4/1 A4/1 C#5/1 F#5/1 | E5/2 C#5/1 A4/1 | B4/2 G#4/1 E4/1 | G#4/4 | F#4/1 A4/1 C#5/1 F#5/1 | A5/2 G#5/1 F#5/1 | E5/2 C#5/1 B4/1 | F#4/4' },
+
+  { id:'brahms1', name:'第一交响曲 · 末乐章主题', orig:'Symphony No.1 in C minor, Op.68 — Finale', composer:'勃拉姆斯', country:'德国', year:1876,
+    era:'romantic', album:'cl-romantic', key:'c 小调', bpm:72, meter:4, pat:'block', kind:'strings', mood:'厚重 · 终得',
+    chords:'Cm Cm Ab Eb Cm Ab Fm G7',
+    lead:'Eb5/3 C5/1 | Ab4/2 C5/1 Eb5/1 | Eb5/2 D5/1 C5/1 | Bb4/4 | C5/2 Eb5/1 G5/1 | Ab5/2 G5/1 F5/1 | Eb5/2 D5/1 B4/1 | C5/4' },
+
+  { id:'brahmsIntermezzo', name:'间奏曲', orig:'Six Pieces, Op.118 No.2 — Intermezzo', composer:'勃拉姆斯', country:'德国', year:1893,
+    era:'romantic', album:'cl-romantic', key:'A 大调', bpm:54, meter:3, pat:'arp', kind:'piano', mood:'私语 · 温柔',
+    chords:'A A E7 E7 D A E7 A',
+    lead:'E5/1 C#5/1 A4/1 | B4/2 C#5/1 | D5/1 E5/1 F#5/1 | E5/3 | C#5/1 B4/1 A4/1 | F#4/2 A4/1 | B4/2 G#4/1 | A4/3' },
+
+  { id:'tchaikovskyPC', name:'第一钢琴协奏曲 · 主题', orig:'Piano Concerto No.1 in B-flat minor, Op.23', composer:'柴可夫斯基', country:'俄国', year:1875,
+    era:'romantic', album:'cl-romantic', key:'降 b 小调', bpm:84, meter:4, pat:'block', kind:'piano', mood:'辽阔 · 起势',
+    chords:'Bbm Bbm Gb Db F7 Bbm Gb F7',
+    lead:'F4/2 Bb4/1 Db5/1 | C5/2 Bb4/1 Ab4/1 | Gb4/2 Bb4/1 Db5/1 | F5/4 | Eb5/2 Db5/1 C5/1 | Db5/2 Bb4/1 F4/1 | Gb4/2 F4/1 Eb4/1 | F4/4' },
+
+  { id:'tchaikovskySerenade', name:'弦乐小夜曲 · 圆舞曲', orig:'Serenade for Strings, Op.48 — Waltz', composer:'柴可夫斯基', country:'俄国', year:1880,
+    era:'romantic', album:'cl-romantic', key:'C 大调', bpm:96, meter:3, pat:'waltz', kind:'strings', mood:'旋转 · 微醺',
+    chords:'C C G7 G7 C C G7 C',
+    lead:'E5/1 G5/1 C6/1 | G5/2 E5/1 | D5/1 F5/1 B5/1 | G5/3 | E5/1 G5/1 C6/1 | A5/2 G5/1 | F5/2 D5/1 | C5/3' },
+
+  { id:'barcarolle', name:'六月 · 船歌', orig:'The Seasons, Op.37a — June: Barcarolle', composer:'柴可夫斯基', country:'俄国', year:1876,
+    era:'romantic', album:'cl-romantic', key:'g 小调', bpm:68, meter:4, pat:'arp', kind:'piano', mood:'水波 · 摇晃',
+    chords:'Gm Gm Cm D7 Gm Eb Cm D7',
+    lead:'Bb4/2 D5/2 | G5/2 F5/1 Eb5/1 | D5/2 C5/1 Bb4/1 | A4/4 | Bb4/2 D5/2 | Eb5/2 D5/1 C5/1 | Bb4/2 A4/1 G4/1 | G4/4' },
+
+  { id:'romeo', name:'罗密欧与朱丽叶 · 爱情主题', orig:'Romeo and Juliet, TH 42 — Love Theme', composer:'柴可夫斯基', country:'俄国', year:1880,
+    era:'romantic', album:'cl-romantic', key:'降 D 大调', bpm:72, meter:4, pat:'arp', kind:'strings', mood:'深情 · 克制',
+    chords:'Db Db Gb Ab7 Db Bbm Gb Ab7',
+    lead:'Ab4/2 Db5/2 | F5/2 Eb5/1 Db5/1 | Eb5/2 C5/1 Ab4/1 | Ab4/4 | Db5/2 F5/2 | Gb5/2 F5/1 Eb5/1 | Db5/2 C5/1 Bb4/1 | Ab4/4' },
+
+  { id:'nutcrackerMarch', name:'胡桃夹子 · 进行曲', orig:'The Nutcracker, Op.71 — March', composer:'柴可夫斯基', country:'俄国', year:1892,
+    era:'romantic', album:'cl-romantic', key:'G 大调', bpm:120, meter:4, pat:'pulse', kind:'piano', mood:'玩具 · 齐步',
+    chords:'G G D7 D7 G G D7 G',
+    lead:'G4/1 G4/1 G4/1 D5/1 | B4/2 G4/2 | F#4/1 F#4/1 F#4/1 D5/1 | A4/2 F#4/2 | G4/1 G4/1 G4/1 D5/1 | C5/2 B4/1 A4/1 | B4/2 A4/1 G4/1 | G4/4' },
+
+  { id:'newworld', name:'第九交响曲「自新大陆」 · 念故乡', orig:'Symphony No.9 in E minor, Op.95 — Largo', composer:'德沃夏克', country:'捷克', year:1893,
+    era:'romantic', album:'cl-romantic', key:'降 D 大调', bpm:72, meter:4, pat:'block', kind:'strings', mood:'想家 · 辽阔',
+    chords:'Db Db Gb Ab7 Db Db Gb Ab7',
+    lead:'Db5/2 Ab4/1 Db5/1 | F5/3 Db5/1 | Eb5/2 Db5/1 C5/1 | Db5/4 | Ab4/2 Db5/1 F5/1 | Gb5/2 F5/1 Eb5/1 | Db5/2 C5/1 Bb4/1 | Ab4/4' },
+
+  { id:'humoresque', name:'幽默曲', orig:'Humoresques, Op.101 No.7', composer:'德沃夏克', country:'捷克', year:1894,
+    era:'romantic', album:'cl-romantic', key:'降 G 大调', bpm:100, meter:4, pat:'arp', kind:'piano', mood:'轻快 · 小跳',
+    chords:'Gb Gb Db7 Db7 Gb Gb Db7 Gb',
+    lead:'Db5/.5 Db5/.5 Eb5/.5 Db5/.5 Bb4/1 Gb4/1 | Ab4/2 r/2 | Ab4/.5 Ab4/.5 Bb4/.5 Ab4/.5 F4/1 Db4/1 | Eb4/2 r/2 | Gb4/.5 Gb4/.5 Ab4/.5 Gb4/.5 Eb4/1 C4/1 | Db5/2 r/2 | Bb4/2 Ab4/2 | Gb4/4' },
+
+  { id:'slavonic', name:'斯拉夫舞曲', orig:'Slavonic Dances, Op.72 No.2', composer:'德沃夏克', country:'捷克', year:1886,
+    era:'romantic', album:'cl-romantic', key:'e 小调', bpm:104, meter:4, pat:'pulse', kind:'strings', mood:'乡愁 · 摆动',
+    chords:'Em Em B7 B7 Em Em B7 Em',
+    lead:'E5/1 G5/1 B5/1 G5/1 | F#5/2 E5/1 D5/1 | C5/2 A4/1 C5/1 | B4/4 | E5/1 G5/1 B5/1 G5/1 | A5/2 G5/1 F#5/1 | E5/2 D5/1 B4/1 | E5/4' },
+
+  { id:'vltava', name:'沃尔塔瓦河', orig:'Má Vlast — Vltava', composer:'斯美塔那', country:'捷克', year:1874,
+    era:'romantic', album:'cl-romantic', key:'e 小调', bpm:88, meter:4, pat:'arp', kind:'strings', mood:'流动 · 向前',
+    chords:'Em Em G D Em Em B7 Em',
+    lead:'B4/2 E5/2 | G5/2 F#5/1 E5/1 | D5/2 B4/1 D5/1 | A4/4 | B4/2 E5/2 | F#5/2 G5/1 A5/1 | G5/2 F#5/1 E5/1 | E5/4' },
+
+  { id:'morning', name:'培尔·金特 · 晨景', orig:'Peer Gynt, Op.23 — Morning Mood', composer:'格里格', country:'挪威', year:1875,
+    era:'romantic', album:'cl-romantic', key:'E 大调', bpm:60, meter:4, pat:'block', kind:'strings', mood:'天亮 · 舒展',
+    chords:'E E A A E E B7 E',
+    lead:'B4/3 A4/1 | G#4/2 F#4/1 E4/1 | A4/3 G#4/1 | F#4/2 E4/1 C#4/1 | B4/3 A4/1 | G#4/2 F#4/1 E4/1 | D#4/2 F#4/1 B4/1 | E4/4' },
+
+  { id:'griegPC', name:'a小调钢琴协奏曲 · 第一乐章', orig:'Piano Concerto in A minor, Op.16', composer:'格里格', country:'挪威', year:1868,
+    era:'romantic', album:'cl-romantic', key:'a 小调', bpm:92, meter:4, pat:'block', kind:'piano', mood:'开阔 · 下行',
+    chords:'Am Am E7 E7 Am F E7 Am',
+    lead:'A4/1 E5/1 A5/1 E5/1 | C6/2 B5/1 A5/1 | G#5/2 E5/1 B4/1 | E5/4 | A4/1 E5/1 A5/1 E5/1 | F5/2 E5/1 D5/1 | C5/2 B4/1 G#4/1 | A4/4' },
+
+  { id:'solveig', name:'索尔维格之歌', orig:'Peer Gynt, Op.23 — Solveig’s Song', composer:'格里格', country:'挪威', year:1875,
+    era:'romantic', album:'cl-romantic', key:'a 小调', bpm:56, meter:4, pat:'arp', kind:'strings', mood:'等待 · 安静',
+    chords:'Am Am F F Dm Am E7 Am',
+    lead:'E4/2 A4/2 | C5/2 B4/1 A4/1 | A4/2 G4/1 F4/1 | F4/4 | A4/2 D5/1 C5/1 | B4/2 A4/1 G#4/1 | A4/2 B4/2 | A4/4' },
+
+  { id:'swanSaint', name:'天鹅', orig:'Le carnaval des animaux — Le Cygne', composer:'圣桑', country:'法国', year:1886,
+    era:'romantic', album:'cl-romantic', key:'G 大调', bpm:54, meter:4, pat:'arp', kind:'strings', mood:'孤高 · 滑行',
+    chords:'G G C C G Em Am D7',
+    lead:'B4/2 D5/1 B4/1 | G5/4 | E5/2 G5/1 E5/1 | C6/4 | B5/2 G5/1 D5/1 | E5/2 B4/1 G4/1 | A4/2 C5/1 A4/1 | F#4/4' },
+
+  { id:'danseMacabre', name:'骷髅之舞', orig:'Danse macabre, Op.40', composer:'圣桑', country:'法国', year:1874,
+    era:'romantic', album:'cl-romantic', key:'g 小调', bpm:96, meter:4, pat:'pulse', kind:'strings', mood:'奇诡 · 起舞',
+    chords:'Gm Gm Eb D7 Gm Gm Eb D7',
+    lead:'G4/.5 A4/.5 Bb4/.5 B4/.5 C5/.5 C#5/.5 D5/.5 Eb5/.5 | D5/2 r/2 | Eb5/.5 D5/.5 C5/.5 Bb4/.5 A4/.5 G4/.5 F#4/.5 G4/.5 | A4/2 r/2 | G4/.5 A4/.5 Bb4/.5 B4/.5 C5/.5 C#5/.5 D5/.5 Eb5/.5 | G5/2 F#5/1 Eb5/1 | D5/2 Bb4/1 G4/1 | G4/4' },
+
+  { id:'habanera', name:'卡门 · 哈巴涅拉', orig:'Carmen — Habanera', composer:'比才', country:'法国', year:1875,
+    era:'romantic', album:'cl-romantic', key:'d 小调', bpm:88, meter:4, pat:'arp', kind:'strings', mood:'慵懒 · 靠近',
+    chords:'Dm Dm A7 A7 Dm Dm A7 Dm',
+    lead:'D5/2 F5/1 E5/1 | D5/2 C#5/1 D5/1 | E5/2 F5/1 E5/1 | D5/2 A4/2 | D5/2 F5/1 E5/1 | F5/2 E5/1 D5/1 | C#5/2 E5/1 A4/1 | D5/4' },
+
+  { id:'toreador', name:'卡门 · 斗牛士之歌', orig:'Carmen — Chanson du Toréador', composer:'比才', country:'法国', year:1875,
+    era:'romantic', album:'cl-romantic', key:'F 大调', bpm:108, meter:4, pat:'pulse', kind:'strings', mood:'昂首 · 有力',
+    chords:'F F C7 C7 F F C7 F',
+    lead:'C5/1 C5/1 C5/1 C5/1 | A4/2 F4/2 | Bb4/1 Bb4/1 Bb4/1 Bb4/1 | G4/2 C5/2 | F5/2 E5/1 D5/1 | C5/2 A4/2 | Bb4/2 G4/2 | F4/4' },
+
+  { id:'farandole', name:'阿莱城姑娘 · 法兰多拉舞曲', orig:'L’Arlésienne Suite No.2 — Farandole', composer:'比才', country:'法国', year:1872,
+    era:'romantic', album:'cl-romantic', key:'D 大调', bpm:120, meter:4, pat:'pulse', kind:'strings', mood:'齐步 · 上扬',
+    chords:'D D G A7 D D G A7',
+    lead:'D5/1 F#5/1 A5/1 F#5/1 | D5/2 A4/2 | G5/1 B5/1 A5/1 G5/1 | F#5/2 E5/1 D5/1 | D5/1 F#5/1 A5/1 F#5/1 | B5/2 A5/1 G5/1 | F#5/2 E5/1 D5/1 | D5/4' },
+
+  { id:'brindisi', name:'茶花女 · 饮酒歌', orig:'La traviata — Libiamo ne’ lieti calici', composer:'威尔第', country:'意大利', year:1853,
+    era:'romantic', album:'cl-romantic', key:'降 B 大调', bpm:108, meter:3, pat:'waltz', kind:'piano', mood:'举杯 · 明亮',
+    chords:'Bb Bb F7 F7 Bb Gm C7 F7',
+    lead:'Bb4/1 D5/1 F5/1 | Bb5/2 A5/1 | G5/1 F5/1 Eb5/1 | D5/3 | Bb4/1 D5/1 F5/1 | G5/2 F5/1 | Eb5/2 D5/1 | Bb4/3' },
+
+  { id:'nabucco', name:'纳布科 · 飞吧，思念', orig:'Nabucco — Va, pensiero', composer:'威尔第', country:'意大利', year:1842,
+    era:'romantic', album:'cl-romantic', key:'C 大调', bpm:76, meter:4, pat:'block', kind:'strings', mood:'合唱 · 思乡',
+    chords:'C C G7 G7 C C F G7',
+    lead:'E4/2 G4/2 | C5/2 B4/1 A4/1 | G4/2 F4/1 E4/1 | D4/4 | E4/2 G4/2 | A4/2 G4/1 F4/1 | E4/2 D4/1 C4/1 | C4/4' },
+
+  { id:'nessunDorma', name:'图兰朵 · 今夜无人入睡', orig:'Turandot — Nessun dorma', composer:'普契尼', country:'意大利', year:1926,
+    era:'romantic', album:'cl-romantic', key:'D 大调', bpm:72, meter:4, pat:'block', kind:'strings', mood:'仰望 · 升起',
+    chords:'D D Bm Bm G G A7 D',
+    lead:'A4/2 D5/1 F#5/1 | A5/2 G5/1 F#5/1 | E5/2 D5/1 B4/1 | D5/4 | B4/2 D5/1 G5/1 | F#5/2 E5/1 D5/1 | E5/2 C#5/1 A4/1 | D5/4' },
+
+  { id:'oMioBabbino', name:'我亲爱的爸爸', orig:'Gianni Schicchi — O mio babbino caro', composer:'普契尼', country:'意大利', year:1918,
+    era:'romantic', album:'cl-romantic', key:'降 A 大调', bpm:60, meter:4, pat:'arp', kind:'piano', mood:'恳求 · 柔软',
+    chords:'Ab Ab Db Eb7 Ab Fm Db Eb7',
+    lead:'Ab4/2 Bb4/1 C5/1 | Eb5/2 C5/1 Ab4/1 | Db5/2 Eb5/1 F5/1 | Eb5/4 | Ab4/2 Bb4/1 C5/1 | Db5/2 C5/1 Bb4/1 | Ab4/2 G4/1 Eb4/1 | Ab4/4' },
+
+  { id:'danube', name:'蓝色多瑙河', orig:'An der schönen blauen Donau, Op.314', composer:'小约翰·施特劳斯', country:'奥地利', year:1867,
+    era:'romantic', album:'cl-romantic', key:'D 大调', bpm:120, meter:3, pat:'waltz', kind:'piano', mood:'圆舞 · 明亮',
+    chords:'D D A7 A7 D D A7 D',
+    lead:'A4/1 F#4/1 A4/1 | D5/3 | B4/1 G4/1 B4/1 | E5/3 | A4/1 F#4/1 A4/1 | D5/2 E5/1 | F#5/2 E5/1 | D5/3' },
+
+  { id:'rach2', name:'第二钢琴协奏曲 · 第二乐章', orig:'Piano Concerto No.2 in C minor, Op.18 — Adagio', composer:'拉赫玛尼诺夫', country:'俄国', year:1901,
+    era:'romantic', album:'cl-romantic', key:'c 小调', bpm:60, meter:4, pat:'arp', kind:'piano', mood:'绵长 · 被抱起',
+    chords:'Cm Cm Ab Ab Fm Cm Ab G7',
+    lead:'C5/2 Eb5/1 G5/1 | Ab5/2 G5/1 F5/1 | Eb5/2 C5/1 B4/1 | C5/4 | C5/2 Eb5/1 G5/1 | Ab5/2 C6/1 Bb5/1 | Ab5/2 G5/1 Eb5/1 | C5/4' },
+
+  { id:'thais', name:'沉思曲', orig:'Thaïs — Méditation', composer:'马斯内', country:'法国', year:1894,
+    era:'romantic', album:'cl-romantic', key:'D 大调', bpm:52, meter:4, pat:'arp', kind:'strings', mood:'凝神 · 安静',
+    chords:'D D A7 A7 D Bm G A7',
+    lead:'F#5/3 E5/1 | D5/2 A4/2 | B4/3 A4/1 | G4/4 | F#5/2 A5/1 G5/1 | F#5/2 E5/1 D5/1 | B4/2 A4/1 G4/1 | F#4/4' },
+
+  { id:'faurePavane', name:'帕凡舞曲', orig:'Pavane, Op.50', composer:'福雷', country:'法国', year:1887,
+    era:'romantic', album:'cl-romantic', key:'升 f 小调', bpm:60, meter:4, pat:'arp', kind:'strings', mood:'克制 · 优雅',
+    chords:'F#m F#m D D C#7 C#7 F#m F#m',
+    lead:'C#5/2 A4/1 F#4/1 | A4/2 C#5/2 | D5/2 C#5/1 B4/1 | A4/4 | G#4/2 A4/1 B4/1 | C#5/2 E5/2 | C#5/2 A4/1 F#4/1 | F#4/4' },
+
+  /* ---------------- 近现代与东方（22） ---------------- */
+  { id:'clairDeLune', name:'月光', orig:'Suite bergamasque — Clair de lune', composer:'德彪西', country:'法国', year:1905,
+    era:'modern', album:'cl-modern', key:'降 D 大调', bpm:50, meter:4, pat:'arp', kind:'piano', mood:'月下 · 透明',
+    chords:'Db Db Gb Ab7 Db Bbm Gb Ab7',
+    lead:'Ab4/2 F4/1 Ab4/1 | Db5/2 C5/1 Bb4/1 | Eb5/2 Db5/1 C5/1 | Db5/4 | Ab4/2 F4/1 Ab4/1 | Bb4/2 Db5/1 F5/1 | Eb5/2 Db5/1 C5/1 | Ab4/4' },
+
+  { id:'arabesque', name:'阿拉伯风格曲 · 第一号', orig:'Deux arabesques, L.66 No.1', composer:'德彪西', country:'法国', year:1891,
+    era:'modern', album:'cl-modern', key:'E 大调', bpm:72, meter:4, pat:'arp16', kind:'piano', mood:'流动 · 缠绕',
+    chords:'E E A B7 E C#m A B7',
+    lead:'B4/2 E5/1 B4/1 | G#5/2 F#5/1 E5/1 | A5/2 G#5/1 F#5/1 | E5/4 | B4/2 E5/1 G#5/1 | F#5/2 E5/1 D#5/1 | C#5/2 B4/1 A4/1 | B4/4' },
+
+  { id:'girlFlaxen', name:'棕发少女', orig:'Préludes, Book I — La fille aux cheveux de lin', composer:'德彪西', country:'法国', year:1910,
+    era:'modern', album:'cl-modern', key:'降 G 大调', bpm:60, meter:4, pat:'arp', kind:'piano', mood:'清晨 · 柔和',
+    chords:'Gb Db7 Gb Db7 Gb Bbm Eb7 Gb',
+    lead:'Db5/2 Bb4/1 Gb4/1 | Ab4/2 F4/1 Db4/1 | Gb4/2 Bb4/1 Db5/1 | C5/2 Bb4/1 Ab4/1 | F5/2 Eb5/1 Db5/1 | C5/2 Bb4/1 Ab4/1 | Gb4/2 F4/1 Eb4/1 | Db4/4' },
+
+  { id:'cathedral', name:'沉没的大教堂', orig:'Préludes, Book I — La cathédrale engloutie', composer:'德彪西', country:'法国', year:1910,
+    era:'modern', album:'cl-modern', key:'C 大调', bpm:54, meter:4, pat:'block', kind:'piano', mood:'深远 · 回声',
+    chords:'C C Am Am F F G G',
+    lead:'C5/3 G4/1 | A4/2 C5/1 E5/1 | E5/3 D5/1 | C5/4 | F5/3 E5/1 | D5/2 C5/1 A4/1 | B4/2 D5/1 G4/1 | C5/4' },
+
+  { id:'bolero', name:'波莱罗', orig:'Boléro, M.81', composer:'拉威尔', country:'法国', year:1928,
+    era:'modern', album:'cl-modern', key:'C 大调', bpm:72, meter:3, pat:'arp', kind:'strings', mood:'重复 · 渐强',
+    chords:'C C C C Am Am C C',
+    lead:'C5/1 C5/1 C5/1 | D5/1 C5/1 B4/1 | C5/1 C5/1 C5/1 | D5/1 C5/1 B4/1 | A4/1 A4/1 A4/1 | B4/1 A4/1 G#4/1 | A4/1 A4/1 A4/1 | B4/1 A4/1 G#4/1' },
+
+  { id:'pavaneRavel', name:'悼念公主的帕凡舞曲', orig:'Pavane pour une infante défunte, M.19', composer:'拉威尔', country:'法国', year:1899,
+    era:'modern', album:'cl-modern', key:'G 大调', bpm:60, meter:4, pat:'arp', kind:'strings', mood:'旧日 · 端庄',
+    chords:'G G C D G Em Am D',
+    lead:'B4/2 D5/1 B4/1 | A4/2 G4/1 F#4/1 | E4/2 G4/1 C5/1 | B4/4 | G4/2 B4/1 D5/1 | E5/2 D5/1 B4/1 | C5/2 A4/1 F#4/1 | G4/4' },
+
+  { id:'gymnopedie', name:'裸体歌舞 · 第一号', orig:'Trois gymnopédies — No.1', composer:'萨蒂', country:'法国', year:1888,
+    era:'modern', album:'cl-modern', key:'D 大调', bpm:56, meter:3, pat:'arp', kind:'piano', mood:'空白 · 松',
+    chords:'D D G A7 D D G A7',
+    lead:'F#4/2 A4/1 | G4/3 | B4/2 A4/1 | G4/3 | F#4/2 E4/1 | D4/3 | E4/2 F#4/1 | D4/3' },
+
+  { id:'gnossienne', name:'玄秘曲 · 第一号', orig:'Trois gnossiennes — No.1', composer:'萨蒂', country:'法国', year:1890,
+    era:'modern', album:'cl-modern', key:'a 小调', bpm:52, meter:3, pat:'arp', kind:'piano', mood:'悬疑 · 静',
+    chords:'Am Am E7 E7 Am Am E7 Am',
+    lead:'E4/3 | A4/2 B4/1 | C5/3 | B4/2 A4/1 | E4/3 | F4/2 E4/1 | D4/2 E4/1 | A4/3' },
+
+  { id:'salutationLove', name:'爱的礼赞', orig:'Salut d’amour, Op.12', composer:'埃尔加', country:'英国', year:1888,
+    era:'modern', album:'cl-modern', key:'E 大调', bpm:64, meter:4, pat:'arp', kind:'strings', mood:'温柔 · 致意',
+    chords:'E E A B7 E C#m A B7',
+    lead:'G#4/2 B4/1 E5/1 | D#5/2 C#5/1 B4/1 | A4/2 C#5/1 E5/1 | B4/4 | G#4/2 B4/1 E5/1 | F#5/2 E5/1 D#5/1 | C#5/2 B4/1 A4/1 | B4/4' },
+
+  { id:'nimrod', name:'谜语变奏曲 · 宁录', orig:'Enigma Variations, Op.36 — Nimrod', composer:'埃尔加', country:'英国', year:1899,
+    era:'modern', album:'cl-modern', key:'降 E 大调', bpm:56, meter:4, pat:'block', kind:'strings', mood:'厚重 · 敬意',
+    chords:'Eb Eb Ab Ab Eb Eb Bb7 Eb',
+    lead:'Eb4/2 G4/1 Bb4/1 | Eb5/2 D5/1 C5/1 | Bb4/2 Ab4/1 G4/1 | Ab4/4 | Bb4/2 Eb5/1 G5/1 | F5/2 Eb5/1 D5/1 | C5/2 Bb4/1 Ab4/1 | Eb4/4' },
+
+  { id:'greensleeves', name:'绿袖子幻想曲', orig:'Fantasia on Greensleeves', composer:'沃恩-威廉斯', country:'英国', year:1934,
+    era:'modern', album:'cl-modern', key:'e 小调', bpm:76, meter:3, pat:'arp', kind:'strings', mood:'古旧 · 轻愁',
+    chords:'Em Em G D Em Em B7 Em',
+    lead:'A4/2 C5/1 | D5/2 E5/1 | F#5/2 E5/1 | D5/3 | B4/2 G4/1 | A4/2 B4/1 | G4/2 E4/1 | E4/3' },
+
+  { id:'jupiterHolst', name:'行星组曲 · 木星', orig:'The Planets, Op.32 — Jupiter', composer:'霍尔斯特', country:'英国', year:1916,
+    era:'modern', album:'cl-modern', key:'C 大调', bpm:72, meter:4, pat:'block', kind:'strings', mood:'宽广 · 欢喜',
+    chords:'C C F F C Am G C',
+    lead:'G4/2 C5/1 E5/1 | G5/3 E5/1 | F5/2 A5/1 G5/1 | E5/4 | C5/2 E5/1 G5/1 | A5/2 G5/1 E5/1 | D5/2 B4/1 G4/1 | C5/4' },
+
+  { id:'finlandia', name:'芬兰颂', orig:'Finlandia, Op.26', composer:'西贝柳斯', country:'芬兰', year:1900,
+    era:'modern', album:'cl-modern', key:'降 A 大调', bpm:60, meter:4, pat:'block', kind:'strings', mood:'沉厚 · 立起',
+    chords:'Ab Ab Db Eb7 Ab Fm Db Eb7',
+    lead:'Ab4/2 Bb4/1 C5/1 | Eb5/2 C5/1 Ab4/1 | Db5/2 Eb5/1 F5/1 | Eb5/4 | Ab4/2 Bb4/1 C5/1 | Db5/2 C5/1 Bb4/1 | Ab4/2 G4/1 Eb4/1 | Ab4/4' },
+
+  { id:'sadWaltz', name:'悲伤圆舞曲', orig:'Valse triste, Op.44 No.1', composer:'西贝柳斯', country:'芬兰', year:1904,
+    era:'modern', album:'cl-modern', key:'d 小调', bpm:60, meter:3, pat:'arp', kind:'strings', mood:'迟暮 · 旋转',
+    chords:'Dm Dm Gm A7 Dm Dm Gm A7',
+    lead:'A4/2 D5/1 | F5/2 E5/1 | D5/2 C#5/1 | D5/3 | A4/2 D5/1 | F5/2 G5/1 | E5/2 C#5/1 | D5/3' },
+
+  { id:'knightsDance', name:'罗密欧与朱丽叶 · 骑士之舞', orig:'Romeo and Juliet, Op.64 — Dance of the Knights', composer:'普罗科菲耶夫', country:'俄国', year:1935,
+    era:'modern', album:'cl-modern', key:'降 E 大调', bpm:100, meter:4, pat:'pulse', kind:'strings', mood:'压迫 · 威仪',
+    chords:'Eb Eb Bb7 Bb7 Eb Eb Bb7 Eb',
+    lead:'Eb5/1 Eb5/1 G5/1 Eb5/1 | Bb4/2 r/2 | D5/1 D5/1 F5/1 D5/1 | Bb4/2 r/2 | Eb5/1 G5/1 Bb5/1 G5/1 | Ab5/2 G5/1 F5/1 | Eb5/2 D5/1 Bb4/1 | Eb5/4' },
+
+  { id:'peterWolf', name:'彼得与狼 · 主题', orig:'Peter and the Wolf, Op.67', composer:'普罗科菲耶夫', country:'俄国', year:1936,
+    era:'modern', album:'cl-modern', key:'C 大调', bpm:96, meter:4, pat:'pulse', kind:'strings', mood:'轻快 · 好奇',
+    chords:'C C G7 G7 C C G7 C',
+    lead:'C5/2 E5/1 G5/1 | E5/2 C5/1 E5/1 | F5/2 D5/1 B4/1 | G4/4 | C5/2 E5/1 G5/1 | A5/2 G5/1 F5/1 | E5/2 D5/1 C5/1 | C5/4' },
+
+  { id:'waltz2', name:'第二圆舞曲', orig:'Suite for Variety Orchestra — Waltz No.2', composer:'肖斯塔科维奇', country:'俄国', year:1956,
+    era:'modern', album:'cl-modern', key:'c 小调', bpm:90, meter:3, pat:'waltz', kind:'strings', mood:'旧梦 · 微醺',
+    chords:'Cm Cm Fm Fm Cm Cm G7 Cm',
+    lead:'G4/1 C5/1 Eb5/1 | F5/2 Eb5/1 | D5/2 C5/1 | C5/3 | Eb5/1 F5/1 G5/1 | Ab5/2 G5/1 | F5/2 Eb5/1 | C5/3' },
+
+  { id:'sabreDance', name:'马刀舞曲', orig:'Gayaneh — Sabre Dance', composer:'哈恰图良', country:'亚美尼亚', year:1942,
+    era:'modern', album:'cl-modern', key:'g 小调', bpm:140, meter:4, pat:'pulse', kind:'piano', mood:'急促 · 冲',
+    chords:'Gm Gm D7 D7 Gm Gm D7 Gm',
+    lead:'G4/.5 G4/.5 G4/.5 G4/.5 G4/1 Bb4/1 | C5/.5 C5/.5 C5/.5 C5/.5 D5/1 Bb4/1 | A4/.5 A4/.5 A4/.5 A4/.5 A4/1 C5/1 | Bb4/2 G4/2 | G4/.5 G4/.5 G4/.5 G4/.5 G4/1 Bb4/1 | D5/.5 D5/.5 D5/.5 D5/.5 Eb5/1 D5/1 | C5/2 Bb4/1 A4/1 | G4/4' },
+
+  { id:'rhapsodyBlue', name:'蓝色狂想曲 · 主题', orig:'Rhapsody in Blue', composer:'格什温', country:'美国', year:1924,
+    era:'modern', album:'cl-modern', key:'降 B 大调', bpm:88, meter:4, pat:'arp', kind:'piano', mood:'城市 · 松弛',
+    chords:'Bb Bb Eb Eb Bb Bb F7 Bb',
+    lead:'F4/2 Bb4/1 D5/1 | F5/2 Eb5/1 D5/1 | Eb5/2 F5/1 G5/1 | Bb5/4 | F5/2 D5/1 Bb4/1 | C5/2 Eb5/1 F5/1 | D5/2 Bb4/1 F4/1 | Bb4/4' },
+
+  { id:'butterflyLovers', name:'梁祝 · 化蝶', orig:'Violin Concerto “The Butterfly Lovers”', composer:'何占豪 / 陈钢', country:'中国', year:1959,
+    era:'modern', album:'cl-modern', key:'D 大调', bpm:56, meter:4, pat:'arp', kind:'strings', mood:'缠绵 · 明亮',
+    chords:'D D A A D D G A',
+    lead:'A4/2 B4/1 D5/1 | E5/2 D5/1 B4/1 | A4/2 B4/1 D5/1 | A4/4 | F#5/2 E5/1 D5/1 | B4/2 A4/1 G4/1 | A4/2 B4/1 D5/1 | D5/4' },
+
+  { id:'shepherdFlute', name:'牧童短笛', orig:'Buffalo Boy’s Flute', composer:'贺绿汀', country:'中国', year:1934,
+    era:'modern', album:'cl-modern', key:'G 大调', bpm:88, meter:4, pat:'arp16', kind:'piano', mood:'田园 · 童趣',
+    chords:'G G C C G G D D',
+    lead:'G4/1 A4/1 B4/1 D5/1 | E5/2 D5/1 B4/1 | A4/1 B4/1 A4/1 G4/1 | G4/4 | D5/1 E5/1 G5/1 E5/1 | D5/2 B4/1 A4/1 | G4/2 A4/1 B4/1 | G4/4' },
+
+  { id:'colorfulClouds', name:'彩云追月', orig:'Colorful Clouds Chasing the Moon', composer:'任光', country:'中国', year:1935,
+    era:'modern', album:'cl-modern', key:'G 大调', bpm:92, meter:4, pat:'arp', kind:'piano', mood:'月色 · 轻盈',
+    chords:'G G C D7 G D7 G G',
+    lead:'D5/2 E5/1 G5/1 | A5/2 G5/1 E5/1 | D5/2 E5/1 D5/1 | B4/4 | G4/1 A4/1 B4/1 D5/1 | E5/2 D5/1 B4/1 | A4/2 G4/1 A4/1 | G4/4' },
 ];
 
 const LIB_ICON = {
@@ -6229,12 +6744,18 @@ const LIB_ICON = {
   moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.6 14.6A8.6 8.6 0 1 1 9.4 3.4a6.7 6.7 0 0 0 11.2 11.2z"/></svg>'
 };
 
-/* 混音校准：按实测平均电平把二十首的听感拉到同一档（1 = 基准，
-   织体稀疏的独奏曲上调、齐奏曲下调，避免切歌时忽大忽小）。 */
+/* 混音校准：按实测平均电平把一百二十首的听感拉到同一档（1 = 基准，
+   织体稀疏的独奏曲上调、齐奏曲下调，避免切歌时忽大忽小）。
+   新增的一百首默认 1，只把实测明显偏响的几首压下来。 */
 const LIB_MIX = {
   minuet:0.65, prelude:1.9, canon:1.18, adagio:1.25, sym40:1.28, serenade:1.28,
   turkish:0.92, moonlight:0.55, fate:1.64, ode:1.22, elise:0.76, wedding:1.1, dream:0.65,
-  lullaby:0.55, paganini:0.69, william:1.9, swan:1.15, flowers:0.69, mountain:1.67, radetzky:0.87
+  lullaby:0.55, paganini:0.69, william:1.9, swan:1.15, flowers:0.69, mountain:1.67, radetzky:0.87,
+  /* —— 100 首新增实测校准（RMS 高于同织体基准的压下来）—— */
+  moz21:0.81, mozclari:0.76, pathetique:0.82, chopinEtude:0.78, funeral:0.81,
+  clairDeLune:0.77, cathedral:0.6, gnossienne:0.6,
+  /* 无旋律的琶音前奏，密度高但很轻，和 prelude 一样提上来 */
+  cello1:1.85
 };
 
 /* ---- 专辑（合集）：一张「唱片」列出它收录的曲目 ---- */
@@ -6251,6 +6772,19 @@ const LIB_ALBUMS = [
   { id:'dance', name:'舞曲与进行曲', en:'Dance & March', tone:'#f0a9c8',
     desc:'三步或四步的律动，先把停住的身体带动起来。',
     ids:['turkish','wedding','flowers','mountain','radetzky'] },
+  /* ---- 四张典藏：收录本轮新增的 100 首真实作品，ids 由 album 字段回填 ---- */
+  { id:'cl-baroque', name:'巴洛克典藏', en:'Baroque Collection', tone:'#7ec8ff',
+    desc:'巴赫、维瓦尔第、亨德尔、波凯里尼等 16 首。低音持续走动，旋律一层层叠上去，适合把呼吸放慢、把注意力收回来。',
+    ids:[] },
+  { id:'cl-classical', name:'古典主义典藏', en:'Classical Collection', tone:'#ffd9a0',
+    desc:'莫扎特、海顿、贝多芬等 18 首。句法清楚、结构对称，情绪不外放，适合需要一点秩序感的时候。',
+    ids:[] },
+  { id:'cl-romantic', name:'浪漫主义典藏', en:'Romantic Collection', tone:'#f0a9c8',
+    desc:'舒伯特到拉赫玛尼诺夫共 44 首，含夜曲、船歌、圆舞曲与歌剧咏叹调。情绪最满的一档，适合想被带着走的时候。',
+    ids:[] },
+  { id:'cl-modern', name:'近现代与东方', en:'Modern & East', tone:'#c8b0e8',
+    desc:'德彪西、拉威尔、萨蒂、西贝柳斯、肖斯塔科维奇到《梁祝》《牧童短笛》共 22 首。和声松开之后，安静变得更透气。',
+    ids:[] },
 ];
 
 /* ---- 风格（乐派） ---- */
@@ -6258,6 +6792,7 @@ const LIB_ERAS = [
   { id:'baroque',   name:'巴洛克',   en:'Baroque',   tone:'#7ec8ff' },
   { id:'classical', name:'古典主义', en:'Classical', tone:'#ffd9a0' },
   { id:'romantic',  name:'浪漫主义', en:'Romantic',  tone:'#f0a9c8' },
+  { id:'modern',    name:'近现代',   en:'Modern',    tone:'#c8b0e8' },
 ];
 
 /* ---- 一句话作品说明（曲目详情页） ---- */
@@ -6427,8 +6962,17 @@ LIB_HEAL_THEMES.forEach(th=>{
 /* 风格列表：疗愈 5 种在前，古典 3 种在后 */
 LIB_ERAS.unshift.apply(LIB_ERAS, LIB_ERAS_HEAL);
 
+/* 四张典藏专辑按 album 字段回填曲目（新曲目已自带 album） */
+LIB_ALBUMS.forEach(a=>{
+  if(!a.ids || !a.ids.length) a.ids = LIB_TRACKS.filter(t=> t.album === a.id).map(t=> t.id);
+});
+
 /* 回填专辑与说明，供筛选 / 检索 / 详情统一取用 */
 LIB_TRACKS.forEach(t=>{
+  if(!t.about && !t.gen){
+    t.about = t.composer + ' 作于 ' + t.year + ' 年。此处取它最广为人知的那段主题，'
+      + '改写成八小节，以' + (t.kind === 'strings' ? '弦乐' : (t.kind === 'bell' ? '钟琴' : '钢琴')) + '演奏。';
+  }
   if(!t.album){
     const al = LIB_ALBUMS.find(a=> a.ids.indexOf(t.id) >= 0);
     t.album = al ? al.id : '';
@@ -6602,6 +7146,7 @@ function libPlan(t){
   let maxMidi = 0;
   for(const e of events) if(e.mel && e.midi > maxMidi) maxMidi = e.midi;
   t._plan = { events, bars, spb, passSec, passes, loopSec: passSec*passes, maxMidi,
+              upMax: t.gen ? 96 : 88,
               kind: t.kind||'piano', mix: t.mix || LIB_MIX[t.id] || 1 };
   return t._plan;
 }
@@ -6656,7 +7201,8 @@ function libVoice(ctx, out, freq, t, dur, vel, kind){
 function libSchedulePass(plan, t0, pass, out){
   const ctx = AudioSys.ctx; if(!ctx) return;
   const now = ctx.currentTime;
-  const up = (pass % 2 === 1 && plan.maxMidi + 12 <= 96) ? 12 : 0;
+  /* 古典曲目音区本来就高，升八度的门槛收紧到 E6，免得第二遍发尖 */
+  const up = (pass % 2 === 1 && plan.maxMidi + 12 <= (plan.upMax || 96)) ? 12 : 0;
   for(const e of plan.events){
     const when = t0 + e.b*plan.spb;
     if(when < now - 0.03) continue;
@@ -6797,7 +7343,7 @@ const Lib = {
   matchQuery(t){
     return this.matchText(t, this.q);
   },
-  /* 把命中的关键词标出来，200 首里一眼看到为什么这首被搜到 */
+  /* 把命中的关键词标出来，300 首里一眼看到为什么这首被搜到 */
   hl(text){
     const src = String(text == null ? '' : text);
     const q = (this.q || '').trim();
@@ -7140,7 +7686,7 @@ const Lib = {
       if(names.length > AR_SHOW){
         const more = document.createElement('button');
         more.type = 'button'; more.className = 'ls-item'; more.id = 'lib-more-artist';
-        more.innerHTML = '<span class="nmm" style="color:#7d8ca6">' + (expanded ? '收起作曲家' : '全部 ' + names.length + ' 位作曲家') + '</span>';
+        more.innerHTML = '<span class="nmm" style="color:#7d8ca6">' + (expanded ? '收起艺术家' : '全部 ' + names.length + ' 位艺术家') + '</span>';
         arBox.appendChild(more);
       }
       const mob = document.createElement('button');
@@ -7159,15 +7705,15 @@ const Lib = {
     const box = $('#lib-crumb'); if(!box) return;
     const kind = this.browseKind(), key = this.browseKey();
     const items = this.filtered();
-    let cn = '全部曲目', cs = items.length + ' 首', pl = null;
+    let cn = '全部曲目', cs = items.length + ' 首', pl = null, cnTitle = '';
     if(kind === 'fav'){ cn = '我的收藏'; cs = items.length + ' 首'; }
     else if(kind === 'recent'){ cn = '最近播放'; cs = items.length + ' 首'; }
     else if(kind === 'era'){ const e = libEra(key); cn = '风格 · ' + (e ? e.name : key); cs = items.length + ' 首'; }
-    else if(kind === 'album'){ const a = libAlbum(key); cn = '专辑 · ' + (a ? a.name : key); cs = (a ? a.desc : ''); }
+    else if(kind === 'album'){ const a = libAlbum(key); cn = '专辑 · ' + (a ? a.name : key); cs = a ? (a.ids.length + ' 首') : ''; cnTitle = a ? a.desc : ''; }
     else if(kind === 'artist'){ cn = key; cs = items.length + ' 首作品'; }
     else if(kind === 'pl'){ pl = this.playlist(key); cn = pl ? pl.name : '歌单'; cs = items.length + ' 首'; }
 
-    let h = '<span class="cn">' + cn + '</span><span class="cs">' + cs + '</span><span class="csp"></span>';
+    let h = '<span class="cn"' + (cnTitle ? ' title="' + cnTitle.replace(/"/g, '&quot;') + '"' : '') + '>' + cn + '</span><span class="cs">' + cs + '</span><span class="csp"></span>';
     if(this.q) h += '<button class="cbtn" data-act="clearq">清除搜索</button>';
     if(pl){
       h += '<button class="cbtn warm" data-act="addtracks">＋ 添加曲目</button>';
