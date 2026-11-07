@@ -6161,6 +6161,12 @@ const Lib = {
           : ((on && st==='playing') ? LIB_ICON.pause : LIB_ICON.play);
       }
     });
+    // 切歌后让高亮行留在视野内（block:'nearest' 只在越界时滚动，不打断用户手动浏览）
+    if(this.open && curId && this._actId !== curId){
+      this._actId = curId;
+      const act = document.querySelector('#lib-list .lib-row.active');
+      if(act && act.scrollIntoView) act.scrollIntoView({ block:'nearest', behavior:'smooth' });
+    }
     const nm = $('#lp-nm'), meta = $('#lp-meta'), dur = $('#lp-dur'), play = $('#lp-play');
     if(this.cur){
       if(nm) nm.textContent = this.cur.name;
