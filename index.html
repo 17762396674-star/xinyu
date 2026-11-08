@@ -8789,9 +8789,12 @@ const Lib = {
     b.setAttribute('aria-label', b.title);
   },
   /* 迷你播放条：关掉音乐库后仍能暂停 / 回库 / 看进度 */
-  paintMini(){
+  /* force = 重新量控制台位置（resize / 显示切换时用）；常态刷新复用缓存，避免每 180ms
+     强制重排两次 getBoundingClientRect 造成布局抖动 */
+  paintMini(force){
     const el = $('#lib-mini'); if(!el) return;
     const show = !this.open && this._touched && !!this.cur && (this.state === 'playing' || this.state === 'paused');
+    const wasShown = el.classList.contains('show');
     el.classList.toggle('show', show);
     el.setAttribute('aria-hidden', show ? 'false' : 'true');
     if(!show) return;
@@ -8813,17 +8816,20 @@ const Lib = {
       const L = (this.plan && this.plan.loopSec) || libDur(this.cur);
       f.style.width = (L ? Math.min(100, this.posNow() / L * 100) : 0) + '%';
     }
-    /* 贴在控制台上方，同时避开右下角的「收起界面」按钮 */
-    const c = $('#console'), tog = $('#ui-toggle');
-    let base = 180;
-    if(c){
-      const cr = c.getBoundingClientRect();
-      if(cr.height) base = (innerHeight - cr.top) + 14;
+    /* 贴位：刚从隐藏态亮出来、或明确要求时重新量一次；其余高频刷新沿用上次量好的值 */
+    if(force || !wasShown || this._miniBottom == null){
+      const c = $('#console'), tog = $('#ui-toggle');
+      let base = 180;
+      if(c){
+        const cr = c.getBoundingClientRect();
+        if(cr.height) base = (innerHeight - cr.top) + 14;
+      }
+      if(tog && getComputedStyle(tog).display !== 'none'){
+        base = Math.max(base, innerHeight - tog.getBoundingClientRect().top + 12);
+      }
+      this._miniBottom = Math.round(base);
     }
-    if(tog && getComputedStyle(tog).display !== 'none'){
-      base = Math.max(base, innerHeight - tog.getBoundingClientRect().top + 12);
-    }
-    el.style.bottom = Math.round(base) + 'px';
+    el.style.bottom = this._miniBottom + 'px';
   },
   openQueue(){
     const { ids, i } = this.queueIdx();
@@ -9142,7 +9148,10 @@ const Lib = {
   metaLine(t, short){
     /* 专辑视图里不再重复写专辑名，那一行留给作曲家与调性 */
     const inAlbumView = !!(this.browseKind && this.browseKind() === 'album');
-    const al = inAlbumView ? null : libAlbum(t.album), er = libEra(t.era);
+    let al = inAlbumView ? null : libAlbum(t.album), er = libEra(t.era);
+    /* 五大家专辑以作曲家命名（「巴赫」「莫扎特」…），副标题再拼一遍就成了「巴赫 · 巴赫」，
+       同名时省略专辑名，只留作曲家与乐派 */
+    if(al && al.name === t.composer) al = null;
     if(short){
       const s2 = [al ? al.name : '', er ? er.name : ''].filter(Boolean).join(' · ');
       return s2 || t.composer;
@@ -9373,7 +9382,9 @@ const Lib = {
 
   openInfo(id){
     const t = this.track(id); if(!t) return;
-    const al = libAlbum(t.album), er = libEra(t.era);
+    let al = libAlbum(t.album); const er = libEra(t.era);
+    /* 五大家专辑以作曲家命名，标签区不必再挂一个和作曲家同名的专辑名 */
+    if(al && al.name === t.composer) al = null;
     const kv = (k, v)=> '<div class="li-kv"><b>' + k + '</b><span>' + v + '</span></div>';
     const kindName = { piano:'钢琴', strings:'弦乐合奏', bell:'钟琴 / 颂钵', pad:'氛围铺底' }[t.kind] || '钢琴';
     const body = '<div class="li-hero"><div class="li-nm">' + t.name + '</div>'
@@ -10250,11 +10261,11 @@ function wireLibrary(){
   document.addEventListener('visibilitychange', ()=>{
     if(!document.hidden && Lib.state === 'playing') Lib.pump();
   });
-  /* 屏幕尺寸变化后迷你条要重新贴到控制台上方 */
+  /* 屏幕尺寸变化后迷你条要重新量控制台位置再贴过去 */
   let _miniT = 0;
   window.addEventListener('resize', ()=>{
     clearTimeout(_miniT);
-    _miniT = setTimeout(()=> Lib.paintMini(), 120);
+    _miniT = setTimeout(()=> Lib.paintMini(true), 120);
   });
 
   document.addEventListener('keydown', e=>{
