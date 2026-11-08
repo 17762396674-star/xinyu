@@ -921,9 +921,38 @@
     #start .go button{ font-size:12px; padding:8px 18px; }
     #start .tip{ display:none; }
   }
+  /* 启动加载遮罩：单文件体量较大（约 1.4MB），在 GitHub Pages 等慢速网络下
+     页面骨架先渲染出来、但按钮事件尚未绑定前，先用遮罩挡住，避免「看到按钮却点不动」。 */
+  #boot-loading{ position:fixed; inset:0; z-index:90; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; background:#05070f; transition:opacity .5s ease, visibility .5s; }
+  #boot-loading.hide{ opacity:0; visibility:hidden; pointer-events:none; }
+  #boot-loading .bl-ring{ width:44px; height:44px; border-radius:50%; border:3px solid rgba(126,200,255,.18); border-top-color:#7ec8ff; animation:blSpin .9s linear infinite; }
+  #boot-loading .bl-txt{ font-size:13px; letter-spacing:3px; color:#9fb0cc; }
+  #boot-loading .bl-logo{ font-size:26px; font-weight:800; letter-spacing:6px; color:#eaf1ff; }
+  #boot-loading .bl-logo b{ color:#7ec8ff; }
+  @keyframes blSpin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ #boot-loading .bl-ring{ animation-duration:1.6s; } }
 </style>
 </head>
 <body class="at-start">
+  <div id="boot-loading" aria-label="正在加载" role="status">
+    <div class="bl-logo">心屿 <b>·</b> 见心安</div>
+    <div class="bl-ring"></div>
+    <div class="bl-txt">正在加载 · 请稍候</div>
+  </div>
+  <script>
+  /* 兜底：正常情况下模块脚本就绪后会自动移除遮罩；若网络异常导致模块迟迟未就绪，
+     12 秒后改为提示用户，避免无限转圈。 */
+  (function(){
+    setTimeout(function(){
+      var el = document.getElementById('boot-loading');
+      if(!el) return;
+      var t = el.querySelector('.bl-txt');
+      if(t) t.textContent = '加载较慢 · 请检查网络后刷新';
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', function(){ location.reload(); });
+    }, 12000);
+  })();
+  </script>
   <div id="app"></div>
 
   <div id="brand">
@@ -10435,6 +10464,10 @@ setMed(5);
 wireControls();
 loadScene('library');
 renderer.setAnimationLoop(loop);
+
+/* 页面完全就绪，隐藏启动遮罩（淡出），按钮事件此刻已全部绑定 */
+const _bootEl = document.getElementById('boot-loading');
+if(_bootEl){ _bootEl.classList.add('hide'); setTimeout(()=>{ try{ _bootEl.remove(); }catch(e){} }, 600); }
 </script>
 </body>
 </html>
