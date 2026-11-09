@@ -2606,6 +2606,188 @@ function makeCanvas(w,h,fn){
 function gradientTex(top,bottom){
   return makeCanvas(2,512,(g,w,h)=>{ const gr=g.createLinearGradient(0,0,0,h); gr.addColorStop(0,top); gr.addColorStop(1,bottom); g.fillStyle=gr; g.fillRect(0,0,w,h); });
 }
+
+/* ============================================================
+   0.4 程序化表面纹理库
+   低模的「塑料感」来自纯色大平面；这里用 Canvas 现画一批表面细节
+   （木纤维 / 树皮裂纹 / 石斑 / 批灰 / 瓦缝 / 织物 / 草叶 / 大理石 / 书页），
+   全部是浅灰底上的明度变化，与 material.color 相乘，
+   因此既有配色一点不改，只多出一层材质感。
+   ============================================================ */
+const TEX = (function(){
+  const cache=new Map();
+  const mk=(k,size,fn)=>{ if(cache.has(k)) return cache.get(k);
+    const t=makeCanvas(size,size,fn); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=4;
+    cache.set(k,t); return t; };
+  const BASE='#d9d1c6';
+  const grain=(g,w,h,R,n,alpha,vert)=>{
+    // 细密纤维：随机短线，用于木、石、织物的底噪
+    for(let i=0;i<n;i++){
+      const a=alpha*(0.4+R()*0.9);
+      g.strokeStyle='rgba(0,0,0,'+a.toFixed(3)+')';
+      g.lineWidth=0.4+R()*1.1;
+      const x=R()*w, y=R()*h, L=2+R()*14, ang=(vert?Math.PI/2:0)+(R()-0.5)*0.5;
+      g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(ang)*L, y+Math.sin(ang)*L); g.stroke();
+    }
+  };
+  return {
+    /* 顺纹木：拉长的木纤维 + 偶尔小结节 */
+    wood(seed=1){ return mk('wood'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*977+13);
+      g.fillStyle=BASE; g.fillRect(0,0,w,h);
+      for(let i=0;i<58;i++){ const y=R()*h;
+        g.strokeStyle='rgba(92,64,40,'+(0.03+R()*0.10).toFixed(3)+')'; g.lineWidth=0.5+R()*2.2;
+        g.beginPath();
+        for(let x=0;x<=w;x+=12){ const yy=y+Math.sin(x/w*Math.PI*2*(1+R()*1.3)+i)*(1+R()*1.8); x?g.lineTo(x,yy):g.moveTo(x,yy); }
+        g.stroke(); }
+      for(let i=0;i<5;i++){ const cx=R()*w,cy=R()*h,r=2.5+R()*6;
+        const gr=g.createRadialGradient(cx,cy,0,cx,cy,r);
+        gr.addColorStop(0,'rgba(72,48,28,0.24)'); gr.addColorStop(1,'rgba(72,48,28,0)');
+        g.fillStyle=gr; g.beginPath(); g.arc(cx,cy,r,0,7); g.fill(); }
+    }); },
+    /* 地板：木纹 + 横向拼缝（每块板一条暗线） */
+    plank(seed=2){ return mk('plank'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*331+7);
+      g.fillStyle=BASE; g.fillRect(0,0,w,h);
+      grain(g,w,h,R,220,0.07,false);
+      const rows=4, rh=h/rows;
+      for(let r=0;r<rows;r++){
+        const off=(r%2)?w*0.5:0;
+        g.strokeStyle='rgba(48,34,22,0.34)'; g.lineWidth=1.6;
+        g.beginPath(); g.moveTo(0,r*rh); g.lineTo(w,r*rh); g.stroke();
+        // 板与板之间的竖向接缝
+        g.strokeStyle='rgba(48,34,22,0.26)'; g.lineWidth=1.2;
+        g.beginPath(); g.moveTo((off+w*0.5)%w, r*rh); g.lineTo((off+w*0.5)%w, (r+1)*rh); g.stroke();
+        // 每块板的轻微色差
+        g.fillStyle='rgba(255,255,255,'+(R()*0.05).toFixed(3)+')';
+        g.fillRect(0,r*rh,w,rh);
+      }
+    }); },
+    /* 树皮：深竖向裂纹 */
+    bark(seed=3){ return mk('bark'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*71+3);
+      g.fillStyle='#c9bfb2'; g.fillRect(0,0,w,h);
+      for(let i=0;i<150;i++){
+        const x=R()*w, y=R()*h, L=8+R()*40;
+        g.strokeStyle='rgba(38,26,16,'+(0.10+R()*0.30).toFixed(3)+')';
+        g.lineWidth=0.7+R()*2.6;
+        g.beginPath(); g.moveTo(x,y);
+        g.lineTo(x+(R()-0.5)*4, y+L); g.stroke();
+      }
+      for(let i=0;i<70;i++){ g.fillStyle='rgba(255,255,255,'+(R()*0.10).toFixed(3)+')';
+        g.fillRect(R()*w, R()*h, 1+R()*3, 2+R()*8); }
+    }); },
+    /* 石材：斑点 + 细裂纹 */
+    stone(seed=4){ return mk('stone'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*157+29);
+      g.fillStyle='#d5d2cc'; g.fillRect(0,0,w,h);
+      for(let i=0;i<260;i++){ const r=0.5+R()*2.6;
+        g.fillStyle='rgba(0,0,0,'+(0.03+R()*0.10).toFixed(3)+')';
+        g.beginPath(); g.arc(R()*w,R()*h,r,0,7); g.fill(); }
+      for(let i=0;i<10;i++){
+        g.strokeStyle='rgba(60,58,52,'+(0.06+R()*0.12).toFixed(3)+')'; g.lineWidth=0.6+R()*1.2;
+        g.beginPath(); let x=R()*w,y=R()*h; g.moveTo(x,y);
+        for(let k=0;k<5;k++){ x+=(R()-0.5)*30; y+=(R()-0.5)*30; g.lineTo(x,y); } g.stroke(); }
+    }); },
+    /* 墙面批灰：极细颗粒 + 大块明暗过渡（去掉「一块纯色板」的感觉） */
+    plaster(seed=5){ return mk('plaster'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*613+11);
+      g.fillStyle='#dedad3'; g.fillRect(0,0,w,h);
+      for(let i=0;i<6;i++){ const cx=R()*w,cy=R()*h,r=40+R()*90;
+        const gr=g.createRadialGradient(cx,cy,0,cx,cy,r);
+        gr.addColorStop(0,'rgba(0,0,0,'+(0.02+R()*0.035).toFixed(3)+')'); gr.addColorStop(1,'rgba(0,0,0,0)');
+        g.fillStyle=gr; g.fillRect(0,0,w,h); }
+      for(let i=0;i<900;i++){ g.fillStyle='rgba(0,0,0,'+(0.02+R()*0.05).toFixed(3)+')';
+        g.fillRect(R()*w,R()*h,1,1); }
+    }); },
+    /* 屋面瓦：横向一排排叠压 */
+    roof(seed=6){ return mk('roof'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*89+5);
+      g.fillStyle='#d2c8bd'; g.fillRect(0,0,w,h);
+      const rows=8, rh=h/rows, cols=10, cw=w/cols;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const x=c*cw+((r%2)?cw*0.5:0);
+          g.fillStyle='rgba(0,0,0,'+(0.05+R()*0.10).toFixed(3)+')';
+          g.beginPath(); g.ellipse(x, r*rh+rh*0.55, cw*0.46, rh*0.46, 0, 0, Math.PI*2); g.fill();
+        }
+        g.strokeStyle='rgba(30,20,14,0.30)'; g.lineWidth=1.6;
+        g.beginPath(); g.moveTo(0,r*rh); g.lineTo(w,r*rh); g.stroke();
+      }
+    }); },
+    /* 织物：经纬交织的十字纹 */
+    fabric(seed=7){ return mk('fabric'+seed,128,(g,w,h)=>{
+      g.fillStyle='#d8d4cd'; g.fillRect(0,0,w,h);
+      const step=4;
+      for(let y=0;y<h;y+=step){ for(let x=0;x<w;x+=step){
+        const on=((x/step)+(y/step))%2===0;
+        g.fillStyle= on ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)';
+        g.fillRect(x,y,step,step);
+      }}
+    }); },
+    /* 树叶团簇：不规则明暗圆斑，比规则织物纹更像叶团 */
+    foliage(seed=11){ return mk('foliage'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*811+37);
+      g.fillStyle='#ccd4c8'; g.fillRect(0,0,w,h);
+      for(let i=0;i<360;i++){
+        const x=R()*w, y=R()*h, r=3+R()*14;
+        const dark=R()<0.56;
+        const gr=g.createRadialGradient(x,y,0,x,y,r);
+        gr.addColorStop(0, dark?'rgba(18,36,18,0.26)':'rgba(255,255,255,0.24)');
+        gr.addColorStop(0.7, dark?'rgba(18,36,18,0.10)':'rgba(255,255,255,0.10)');
+        gr.addColorStop(1,'rgba(0,0,0,0)');
+        g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+      }
+    }); },
+    /* 草地：深浅草叶簇 */
+    grass(seed=8){ return mk('grass'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*241+17);
+      g.fillStyle='#cdd3c2'; g.fillRect(0,0,w,h);
+      for(let i=0;i<1100;i++){
+        const x=R()*w, y=R()*h, L=1.6+R()*5;
+        const dark=R()<0.55;
+        g.strokeStyle= dark ? 'rgba(28,48,24,'+(0.05+R()*0.14).toFixed(3)+')' : 'rgba(255,255,255,'+(0.04+R()*0.12).toFixed(3)+')';
+        g.lineWidth=0.6+R()*0.9;
+        g.beginPath(); g.moveTo(x,y); g.lineTo(x+(R()-0.5)*2.4, y-L); g.stroke();
+      }
+    }); },
+    /* 大理石：长条纹理（音乐厅地面） */
+    marble(seed=9){ return mk('marble'+seed,256,(g,w,h)=>{ const R=mulberry32(seed*419+23);
+      g.fillStyle='#e6e3de'; g.fillRect(0,0,w,h);
+      for(let i=0;i<26;i++){
+        g.strokeStyle='rgba(90,86,80,'+(0.03+R()*0.09).toFixed(3)+')'; g.lineWidth=0.5+R()*1.6;
+        g.beginPath(); let x=R()*w, y=R()*h; g.moveTo(x,y);
+        for(let k=0;k<7;k++){ x+=(R()-0.3)*46; y+=(R()-0.5)*20; g.lineTo(x,y); } g.stroke();
+      }
+    }); },
+    /* 书页/纸：极浅纤维 */
+    paper(seed=10){ return mk('paper'+seed,128,(g,w,h)=>{ const R=mulberry32(seed*53+31);
+      g.fillStyle='#e2ded5'; g.fillRect(0,0,w,h);
+      grain(g,w,h,R,340,0.045,false);
+      for(let i=0;i<26;i++){ g.fillStyle='rgba(0,0,0,'+(0.02+R()*0.04).toFixed(3)+')';
+        g.fillRect(0, R()*h, w, 0.6); }
+    }); }
+  };
+})();
+
+/* 统一材质工厂：带 map + bumpMap（同一张图当高程，省一次生成）
+   repeat 用 clone 实现——clone 共享 image，不额外占内存 */
+function texMat(o){
+  o = o || {};
+  if(!o.tex) return new THREE.MeshStandardMaterial({ color:o.color||'#ffffff', roughness:o.rough==null?.85:o.rough, metalness:o.metal||0 });
+  const rp = o.repeat || [1,1];
+  const map = o.tex.clone(); map.needsUpdate=true; map.wrapS=map.wrapT=THREE.RepeatWrapping; map.repeat.set(rp[0],rp[1]);
+  let bump = null;
+  if(o.bump !== false){
+    bump = o.tex.clone(); bump.needsUpdate=true; bump.wrapS=bump.wrapT=THREE.RepeatWrapping; bump.repeat.set(rp[0],rp[1]);
+  }
+  return new THREE.MeshStandardMaterial({
+    color: o.color || '#ffffff',
+    map,
+    roughness: o.rough == null ? .86 : o.rough,
+    metalness: o.metal || 0,
+    bumpMap: bump,
+    bumpScale: o.bump == null ? .016 : o.bump,
+    emissive: o.emissive || 0x000000,
+    emissiveIntensity: o.emissiveIntensity != null ? o.emissiveIntensity : (o.ei == null ? 1 : o.ei),
+    side: o.side || THREE.FrontSide,
+    transparent: !!o.transparent,
+    opacity: o.opacity == null ? 1 : o.opacity,
+    depthWrite: o.depthWrite !== false
+  });
+}
 function glowTex(inner='#ffffff', mid='rgba(160,190,255,0.35)', outer='rgba(0,0,0,0)'){
   return makeCanvas(128,128,(g,w,h)=>{ const r=w/2; const gr=g.createRadialGradient(r,r,0,r,r,r); gr.addColorStop(0,inner); gr.addColorStop(0.25,mid); gr.addColorStop(1,outer); g.fillStyle=gr; g.fillRect(0,0,w,h); });
 }
@@ -2616,6 +2798,24 @@ function makeSkySphere(top,bottom){
 function makeGlowSprite(tex, x,y,z, scale, tint){
   const mat=new THREE.SpriteMaterial({ map:tex, color: tint||0xffffff, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false });
   const sp=new THREE.Sprite(mat); sp.position.set(x,y,z); sp.scale.setScalar(scale); return sp;
+}
+/* 低模土丘：半球压扁 + 顶点抖动。用来在场景边缘造缓丘、洼地边沿，
+   不移动地面平面，所以不影响行走高度与陈设落位。 */
+function mound(g, x, z, rx, h, rz, mat, seed){
+  const R = mulberry32(seed || 1);
+  const geo = new THREE.SphereGeometry(1, 16, 10, 0, Math.PI*2, 0, Math.PI/2);
+  const pos = geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const vx=pos.getX(i), vy=pos.getY(i), vz=pos.getZ(i);
+    const k = 0.86 + R()*0.30;
+    pos.setXYZ(i, vx*k, vy*(0.80+R()*0.40), vz*k);
+  }
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, -0.05, z);
+  m.scale.set(rx, h, rz);
+  g.add(m);
+  return m;
 }
 
 /* ============================================================
@@ -3373,15 +3573,16 @@ const Landmark = {};
 /* ---- 通用材质 ---- */
 function lmMats(){
   const em=(c,k)=>({ emissive:new THREE.Color(c).multiplyScalar(k==null?0.2:k), emissiveIntensity:1 });
+  /* 全部换成带程序化纹理的材质：木有木纹、石有石斑、瓦有瓦缝、树皮有裂纹 */
   return {
-    bark:new THREE.MeshStandardMaterial(Object.assign({ color:'#5b4430', roughness:.95 }, em('#5b4430',0.22))),
-    plank:new THREE.MeshStandardMaterial(Object.assign({ color:'#9a7850', roughness:.82 }, em('#9a7850',0.2))),
-    plankDark:new THREE.MeshStandardMaterial(Object.assign({ color:'#7a5a38', roughness:.85 }, em('#7a5a38',0.22))),
-    roof:new THREE.MeshStandardMaterial(Object.assign({ color:'#8a4a3c', roughness:.88 }, em('#8a4a3c',0.26))),
-    stone:new THREE.MeshStandardMaterial(Object.assign({ color:'#787872', roughness:.95 }, em('#787872',0.18))),
-    warm:new THREE.MeshStandardMaterial({ color:'#ffd9a0', emissive:'#ffb45e', emissiveIntensity:1.3, roughness:.5 }),
-    leaf:new THREE.MeshStandardMaterial(Object.assign({ color:'#356046', roughness:.92 }, em('#356046',0.22))),
-    metal:new THREE.MeshStandardMaterial({ color:'#8a8f98', roughness:.45, metalness:.55 })
+    bark:      texMat({ tex:TEX.bark(1),  color:'#a08a72', repeat:[2,3], rough:.95, bump:.05, ...em('#5b4430',0.16) }),
+    plank:     texMat({ tex:TEX.plank(2), color:'#c9a878', repeat:[3,2], rough:.82, bump:.022, ...em('#9a7850',0.14) }),
+    plankDark: texMat({ tex:TEX.plank(3), color:'#a5855f', repeat:[3,2], rough:.85, bump:.022, ...em('#7a5a38',0.15) }),
+    roof:      texMat({ tex:TEX.roof(6),  color:'#c08878', repeat:[4,2], rough:.88, bump:.03,  ...em('#8a4a3c',0.18) }),
+    stone:     texMat({ tex:TEX.stone(4), color:'#a8a8a2', repeat:[2,2], rough:.95, bump:.04,  ...em('#787872',0.12) }),
+    warm:      new THREE.MeshStandardMaterial({ color:'#ffd9a0', emissive:'#ffb45e', emissiveIntensity:1.3, roughness:.5 }),
+    leaf:      texMat({ tex:TEX.fabric(7), color:'#86a894', repeat:[2,2], rough:.92, bump:.02, ...em('#356046',0.16) }),
+    metal:     new THREE.MeshStandardMaterial({ color:'#8a8f98', roughness:.34, metalness:.72 })
   };
 }
 
@@ -3473,6 +3674,12 @@ Landmark.cabin = function(g, x, z, rot, M){
   const grp=new THREE.Group(); grp.position.set(x,0,z); grp.rotation.y=rot||0;
 
   const body=box(7.2,3.1,5.2,M.plank); body.position.y=1.55; grp.add(body);
+  // 墙角立柱 + 石砌地基 + 檐下压条：让方块体不再是一个光板盒子
+  [[-3.6,-2.6],[3.6,-2.6],[-3.6,2.6],[3.6,2.6]].forEach(([cx,cz])=>{
+    const corner=box(0.36,3.1,0.36,M.plankDark); corner.position.set(cx,1.55,cz); grp.add(corner);
+  });
+  const footing=box(7.5,0.4,5.5,M.stone); footing.position.y=0.2; grp.add(footing);
+  const band=box(7.44,0.2,5.44,M.plankDark); band.position.y=3.02; grp.add(band);
   // 山墙（三角）
   const gableShape=new THREE.Shape();
   gableShape.moveTo(-3.6,0); gableShape.lineTo(3.6,0); gableShape.lineTo(0,2.0); gableShape.closePath();
@@ -3487,6 +3694,9 @@ Landmark.cabin = function(g, x, z, rot, M){
   const door=box(1.1,2.15,0.08,M.plankDark); door.position.set(0.55,1.08,0); doorPivot.add(door);
   const knob=sph(0.05,M.metal,6); knob.position.set(1.0,1.05,0.06); doorPivot.add(knob);
   grp.add(doorPivot);
+  // 门框（左右门柱 + 门楣）
+  [-0.63,0.63].forEach(fx=>{ const jamb=box(0.12,2.24,0.14,M.plankDark); jamb.position.set(fx,1.12,2.66); grp.add(jamb); });
+  const lintel=box(1.4,0.15,0.17,M.plankDark); lintel.position.set(0,2.28,2.66); grp.add(lintel);
 
   // 窗（发光）
   const winMat=new THREE.MeshStandardMaterial({ color:'#ffcf8a', emissive:'#ffb45e', emissiveIntensity:1.1, roughness:.5 });
@@ -3597,10 +3807,15 @@ Landmark.pavilion = function(g, x, z, M){
   const base=new THREE.Mesh(new THREE.CylinderGeometry(3.4,3.6,0.3,6), M.stone); base.position.y=0.15; grp.add(base);
   for(let i=0;i<6;i++){
     const a=i/6*Math.PI*2;
-    const p=cyl(0.12,0.14,3.0,M.plank,6);
+    const p=cyl(0.12,0.14,3.0,M.plank,10);
     p.position.set(Math.cos(a)*2.7,1.65,Math.sin(a)*2.7); grp.add(p);
+    // 柱头（压顶小方木），柱身分段也从 6 提到 10，棱角更顺
+    const cap=box(0.24,0.16,0.24,M.plankDark);
+    cap.position.set(Math.cos(a)*2.7,3.02,Math.sin(a)*2.7); grp.add(cap);
   }
   const roof=cone(3.9,1.7,M.roof,6); roof.position.y=4.2; grp.add(roof);
+  // 檐口压边：一眼能看出「屋顶是有厚度的」
+  const eave=cyl(3.98,3.98,0.13,M.plankDark,6); eave.position.y=3.36; grp.add(eave);
   const ring=cyl(3.1,3.1,0.16,M.plankDark,6); ring.position.y=3.15; grp.add(ring);
   const lantern=sph(0.16,M.warm,8); lantern.position.y=2.95; grp.add(lantern);
   g.add(grp);
@@ -3670,8 +3885,8 @@ SceneBuilders.forest = function(){
     c.fillStyle='#1e2f26'; c.fillRect(0,0,w,h);
     for(let i=0;i<900;i++){ const s=1+Math.random()*5; c.fillStyle='rgba('+(30+Math.random()*40|0)+','+(48+Math.random()*46|0)+','+(34+Math.random()*30|0)+',0.55)'; c.fillRect(Math.random()*w, Math.random()*h, s, s); }
   });
-  floorTex.wrapS=floorTex.wrapT=THREE.RepeatWrapping; floorTex.repeat.set(14,14);
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(240,240), new THREE.MeshStandardMaterial({ map:floorTex, roughness:1 }));
+  floorTex.wrapS=floorTex.wrapT=THREE.RepeatWrapping; floorTex.repeat.set(20,20);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(340,340), new THREE.MeshStandardMaterial({ map:floorTex, bumpMap:floorTex, bumpScale:.02, roughness:1 }));
   ground.rotation.x=-Math.PI/2; g.add(ground);
 
   // 中央小径
@@ -3683,15 +3898,22 @@ SceneBuilders.forest = function(){
   const path=new THREE.Mesh(new THREE.PlaneGeometry(4.6,64), new THREE.MeshStandardMaterial({ map:pathTex, roughness:.96 }));
   path.rotation.x=-Math.PI/2; path.position.set(0,0.02,-4); g.add(path);
 
+  // 边缘地形：起伏土丘（在活动边界外围造出坡地层次，不抬高行走地面）
+  const moundMat=texMat({ tex:TEX.grass(65), color:'#42624c', repeat:[5,5], rough:1, bump:.032 });
+  [[-52,-30,26,4.2,20,1],[-58,18,22,3.4,17,2],[46,-46,24,3.8,19,3],[54,26,20,3.0,16,4],
+   [-20,-56,30,4.6,22,5],[24,-58,18,2.8,15,6],[-70,-2,20,3.2,16,7],[70,6,18,2.6,14,8],
+   [-40,46,22,3.0,17,9],[38,50,20,2.6,15,10]]
+   .forEach(([x,z,rx,h,rz,sd])=>mound(g,x,z,rx,h,rz,moundMat,sd));
+
   // 溪流 + 石桥
   const stream=Landmark.stream(g, 9, M);
   Landmark.bridge(g, 0, 9, M, 7.2);
 
   // 森林（环形，留出空地）
-  const treeMats=[new THREE.MeshStandardMaterial({color:'#24402f',roughness:.95}),
-                  new THREE.MeshStandardMaterial({color:'#2c4a34',roughness:.95}),
-                  new THREE.MeshStandardMaterial({color:'#1e3a2a',roughness:.95})];
-  const trunkMat=new THREE.MeshStandardMaterial({ color:'#3f2e20', roughness:.95 });
+  const treeMats=[texMat({tex:TEX.foliage(61),color:'#3a6349',repeat:[2,2],rough:.95,bump:.02}),
+                  texMat({tex:TEX.foliage(62),color:'#44724f',repeat:[2,2],rough:.95,bump:.02}),
+                  texMat({tex:TEX.foliage(63),color:'#31573f',repeat:[2,2],rough:.95,bump:.02})];
+  const trunkMat=texMat({ tex:TEX.bark(64), color:'#6a5442', repeat:[2,3], rough:.95, bump:.05 });
   function tree(x,z,s,mat){
     const t=cyl(0.18*s,0.3*s,3.0*s,trunkMat,6); t.position.set(x,1.5*s,z); g.add(t);
     const n=2+Math.floor(rnd()*3);
@@ -3790,6 +4012,32 @@ SceneBuilders.forest = function(){
     text:'水很浅，能看见底下的石头。有些事看清了，也就不那么可怕了。' });
   registerHotspot(g, 4.2, 1.5, 17.0, { id:'forest.ground', r:1.05, scale:1.5, tint:0xcfe0ff, op:.15, faint:true, title:'回到空地',
     text:'退一步，整片林子又回到眼里。', act:()=>{ flyTo(VIEWS.ground.p, VIEWS.ground.t, 1.8); } });
+  // ===== 外围扩展区：倒木与蘑菇圈（东北角，扩边界后新增） =====
+  {
+    const logM=texMat({ tex:TEX.bark(66), color:'#7a6250', repeat:[4,1], rough:.95, bump:.045 });
+    const log=cyl(0.48,0.58,7.6,logM,10); log.rotation.z=Math.PI/2; log.rotation.y=0.42; log.position.set(35,0.55,-17); g.add(log);
+    // 断口年轮
+    const ringM=new THREE.MeshStandardMaterial({ color:'#c8a878', roughness:.9 });
+    [1,-1].forEach(s=>{ const ring=cyl(0.5,0.5,0.06,ringM,12); ring.rotation.z=Math.PI/2;
+      ring.position.set(35+Math.cos(0.42)*3.8*s, 0.55, -17-Math.sin(0.42)*3.8*s); g.add(ring); });
+    // 蘑菇圈
+    const capM=texMat({ tex:TEX.fabric(67), color:'#ddd4c4', repeat:[1,1], rough:.68, bump:.008 });
+    const stemM=new THREE.MeshStandardMaterial({ color:'#e8e2d6', roughness:.82 });
+    for(let i=0;i<15;i++){ const a=i/15*Math.PI*2, rr=2.7+i%2*0.3;
+      const mx=35+Math.cos(a)*rr, mz=-17+Math.sin(a)*rr;
+      const st=cyl(0.05,0.075,0.22,stemM,6); st.position.set(mx,0.11,mz); g.add(st);
+      const cap=sph(0.15+(i%3)*0.035, capM, 10); cap.scale.y=0.62; cap.position.set(mx,0.26,mz); g.add(cap);
+    }
+    // 从主区延伸过来的土径
+    const dirtM=texMat({ tex:TEX.stone(68), color:'#8a7458', repeat:[1,10], rough:.98, bump:.018 });
+    const trail=new THREE.Mesh(new THREE.PlaneGeometry(2.2,30), dirtM);
+    trail.rotation.x=-Math.PI/2; trail.rotation.z=-0.62; trail.position.set(21,0.02,-12); g.add(trail);
+    g.userData.logT=-999;
+  }
+  registerHotspot(g, 35, 1.0, -17, { id:'forest.logRing', r:2.2, scale:2.6, tint:0xc8e8a8, op:.4, go:4.5, title:'倒木与蘑菇圈',
+    text:'倒下的大树上长了一圈小白菌，整整齐齐，像谁悄悄摆的。倒下的东西，也在养活别的东西。',
+    act:()=>{ SFX.rustle(); g.userData.logT = sceneTime || 0; } });
+
   // 新增探索热点：萤火虫谷 / 苔石小径 / 观星坡
   registerHotspot(g, -24, 1.6, 14, { id:'forest.fireflyVale', r:2.4, scale:2.8, tint:0xd8ff9a, op:.4, go:5.5, title:'萤火虫谷',
     text:'这片洼地里萤火最密，像有人把一捧星星撒进了草丛。别急着走，让它们慢慢亮起来。',
@@ -3822,7 +4070,7 @@ SceneBuilders.forest = function(){
   };
 
   return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,4.8,20], lookAt:[-2,3.4,-11],
-    walk:{ eye:1.68, b:{r:34},
+    walk:{ eye:1.68, b:{r:46},
       col:[{x:-11.5,z:-12.5,r:2.9},{x:12.6,z:-9.5,r:5.0},{x:3.4,z:1.2,r:1.9},{x:-24,z:14,r:2.6},{x:22,z:6,r:2.8},{x:-6,z:-24,r:2.4}],
       trig:[{x:9.2,z:-5.4,r:2.8,id:'forest.cabin'},{x:-10.4,z:-10.0,r:2.2,id:'forest.ladder'},{x:3.4,z:2.4,r:1.7,id:'forest.fire'}] } };
 };
@@ -3835,11 +4083,9 @@ SceneBuilders.library = function(){
   const bg=new THREE.Color('#161a2c'); const fog=new THREE.Fog('#161a2c', 14, 58);
 
   // 房间
-  const woodMat=new THREE.MeshStandardMaterial({ color:'#4c3522', roughness:.82 });
+  const woodMat=texMat({ tex:TEX.plank(11), color:'#6b4b2e', repeat:[10,10], rough:.82, bump:.02 });
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(40,40), woodMat); floor.rotation.x=-Math.PI/2; g.add(floor);
-  const plankTex=makeCanvas(256,256,(c,w,h)=>{ c.fillStyle='#4c3522'; c.fillRect(0,0,w,h); for(let i=0;i<8;i++){ c.fillStyle='rgba(0,0,0,0.16)'; c.fillRect(0,i*32, w, 2); for(let j=0;j<8;j++){ c.fillStyle='rgba(255,220,170,0.04)'; c.fillRect(j*32+6, i*32+3, 18, 26); } } });
-  const floorTex=new THREE.Mesh(new THREE.PlaneGeometry(40,40), new THREE.MeshStandardMaterial({ map:plankTex, roughness:.85 })); floorTex.rotation.x=-Math.PI/2; g.add(floorTex);
-  const wallMat=new THREE.MeshStandardMaterial({ color:'#3d4a6e', roughness:.95 });
+  const wallMat=texMat({ tex:TEX.plaster(12), color:'#5b6b90', repeat:[7,3], rough:.95, bump:.014 });
   const wallBack=new THREE.Mesh(new THREE.PlaneGeometry(40,14), wallMat); wallBack.position.set(0,7,-8); g.add(wallBack);
   const wallL=new THREE.Mesh(new THREE.PlaneGeometry(40,14), wallMat); wallL.position.set(-20,7,0); wallL.rotation.y=Math.PI/2; g.add(wallL);
   const wallR=new THREE.Mesh(new THREE.PlaneGeometry(40,14), wallMat); wallR.position.set(20,7,0); wallR.rotation.y=-Math.PI/2; g.add(wallR);
@@ -3877,15 +4123,17 @@ SceneBuilders.library = function(){
 
   // 书架（程序化书本）
   const bookCols=['#a04a3c','#3f5f8a','#4f7046','#a9853a','#5c5c68','#718397','#8a3f52','#3a7480','#8a6ab0','#b0a06a'];
+  const shelfShell=texMat({ tex:TEX.wood(13), color:'#8a6440', repeat:[2,1], rough:.72, bump:.018 });
+  const shelfFace=texMat({ tex:TEX.wood(14), color:'#a8834f', repeat:[2,1], rough:.7, bump:.016 });
   function shelf(x,z,ry,n){
     const s=new THREE.Group(); s.position.set(x,0,z); s.rotation.y=ry;
-    const shell=new THREE.MeshStandardMaterial({ color:'#6b4d2e', roughness:.72 });
-    const shellFace=new THREE.MeshStandardMaterial({ color:'#8a6a40', roughness:.7 });
+    const shell=shelfShell;
+    const shellFace2=shelfFace;
     s.add(put(box(2.2,0.18,0.6,shell),0,0.1,0));
     s.add(put(box(0.18,2.6,0.6,shell),-1.01,1.3,0));
     s.add(put(box(0.18,2.6,0.6,shell),1.01,1.3,0));
     s.add(put(box(2.2,0.18,0.6,shell),0,2.6,0));
-    for(let i=0;i<4;i++) s.add(put(box(2.0,0.1,0.55,shellFace),0,0.6+i*0.62,0));
+    for(let i=0;i<4;i++) s.add(put(box(2.0,0.1,0.55,shellFace2),0,0.6+i*0.62,0));
     const count=4*Math.max(8,n);
     const geo=new THREE.BoxGeometry(0.1,0.3,0.32);
     const mat=new THREE.MeshStandardMaterial({ color:0xffffff, roughness:.55, emissive:'#4a3a20', emissiveIntensity:.62 });
@@ -3909,7 +4157,7 @@ SceneBuilders.library = function(){
   shelf(-5.5,-7,Math.PI/2,8); shelf(5.5,-7,-Math.PI/2,8);
 
   // 书桌 + 台灯 + 书本
-  const deskMat=new THREE.MeshStandardMaterial({ color:'#775333', roughness:.55 });
+  const deskMat=texMat({ tex:TEX.wood(15), color:'#a87a4e', repeat:[2,1], rough:.52, bump:.014 });
   const desk=new THREE.Group();
   desk.add(put(box(2.2,0.12,1.0,deskMat),0,0.78,0));
   desk.add(put(box(0.14,0.78,1.0,deskMat),-0.95,0.39,0));
@@ -3953,8 +4201,8 @@ SceneBuilders.library = function(){
   // ===== 新增房间前半：阅读角（中央） / 壁炉角（左侧） / 落地灯（右侧） =====
   // 中央阅读角：两把沙发 + 小圆几 + 落地书堆
   {
-    const sofaM=new THREE.MeshStandardMaterial({ color:'#7a4a38', roughness:.82 });
-    const cushionM=new THREE.MeshStandardMaterial({ color:'#c8a06a', roughness:.85 });
+    const sofaM=texMat({ tex:TEX.fabric(21), color:'#9a6248', repeat:[2,2], rough:.9, bump:.02 });
+    const cushionM=texMat({ tex:TEX.fabric(22), color:'#d8b078', repeat:[2,2], rough:.92, bump:.02 });
     [[-1.6,6.6],[1.6,6.6]].forEach(([sx,sz])=>{
       const sofa=new THREE.Group(); sofa.position.set(sx,0,sz); sofa.rotation.y=(sx<0?Math.PI/2:-Math.PI/2);
       sofa.add(put(box(1.6,0.5,0.8,sofaM),0,0.45,0));
@@ -3963,18 +4211,18 @@ SceneBuilders.library = function(){
       sofa.add(put(box(0.3,0.35,0.8,sofaM),0.65,0.35,0));
       g.add(sofa);
     });
-    const table=cyl(0.55,0.55,0.5,new THREE.MeshStandardMaterial({ color:'#6b4d2e', roughness:.7 }),12); table.position.set(0,0.25,6.8); g.add(table);
-    const tableTop=cyl(0.6,0.6,0.06,new THREE.MeshStandardMaterial({ color:'#8a6a40', roughness:.6 }),16); tableTop.position.set(0,0.52,6.8); g.add(tableTop);
+    const table=cyl(0.55,0.55,0.5,texMat({ tex:TEX.wood(23), color:'#8a6440', repeat:[1,1], rough:.7, bump:.016 }),12); table.position.set(0,0.25,6.8); g.add(table);
+    const tableTop=cyl(0.6,0.6,0.06,texMat({ tex:TEX.wood(24), color:'#a8834f', repeat:[1,1], rough:.58, bump:.012 }),16); tableTop.position.set(0,0.52,6.8); g.add(tableTop);
     // 小书堆
     const bookM=new THREE.MeshStandardMaterial({ color:'#a04a3c', roughness:.7 });
     [0,1,2].forEach(i=>{ const b=box(0.5,0.08,0.34,bookM); b.position.set(0,0.56+i*0.08,6.8); b.rotation.y=i*0.4; g.add(b); });
   }
   // 左侧壁炉角：壁炉 + 火光
   {
-    const fireM=new THREE.MeshStandardMaterial({ color:'#4a4a52', roughness:.85 });
+    const fireM=texMat({ tex:TEX.stone(25), color:'#8a8a92', repeat:[2,2], rough:.85, bump:.03 });
     const fireplace=new THREE.Group(); fireplace.position.set(-6,0,4);
     fireplace.add(put(box(1.8,2.2,0.6,fireM),0,1.1,0));
-    fireplace.add(put(box(2.0,0.2,0.7,new THREE.MeshStandardMaterial({ color:'#3a3a42', roughness:.8 })),0,2.25,0));
+    fireplace.add(put(box(2.0,0.2,0.7,texMat({ tex:TEX.stone(26), color:'#7a7a82', repeat:[2,1], rough:.8, bump:.028 })),0,2.25,0));
     const fireHole=box(1.0,0.8,0.15,new THREE.MeshBasicMaterial({ color:'#2a1208' })); fireHole.position.set(0,0.8,0.31); fireplace.add(fireHole);
     g.add(fireplace);
     const fireGlow=makeGlowSprite(glowTex('#ff9a4a','rgba(255,140,60,0.5)'), -6,0.9,4.4, 2.6); g.add(fireGlow);
@@ -4063,15 +4311,23 @@ SceneBuilders.campus = function(){
   const moon=makeGlowSprite(glowTex('#ffffff','rgba(190,215,255,0.4)'), -26,36,-80, 66); g.add(moon);
   const moonCore=makeGlowSprite(glowTex('#ffffff','rgba(255,255,255,0.6)'), -26,36,-80, 16, 0xdfe9ff); g.add(moonCore);
 
-  // 地面（含一条主道的暗色步道）
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300), new THREE.MeshStandardMaterial({ color:'#1c2a48', roughness:1 })); ground.rotation.x=-Math.PI/2; g.add(ground);
-  const road=new THREE.Mesh(new THREE.PlaneGeometry(4.5,120), new THREE.MeshStandardMaterial({ color:'#25345c', roughness:1 })); road.rotation.x=-Math.PI/2; road.position.set(0,0.01,-6); g.add(road);
+  // 地面（含一条主道的暗色步道）——草地铺纹理，夜里也有细密的草叶感
+  const ground=texMat({ tex:TEX.grass(31), color:'#2a3f5e', repeat:[62,62], rough:1, bump:.02 });
+  const groundMesh=new THREE.Mesh(new THREE.PlaneGeometry(400,400), ground); groundMesh.rotation.x=-Math.PI/2; g.add(groundMesh);
+  const road=texMat({ tex:TEX.stone(32), color:'#48597f', repeat:[3,40], rough:.96, bump:.014 });
+  const roadMesh=new THREE.Mesh(new THREE.PlaneGeometry(4.5,120), road); roadMesh.rotation.x=-Math.PI/2; roadMesh.position.set(0,0.01,-6); g.add(roadMesh);
   // 月光洒落地面的树影/路面明暗微差
   const pathLight=new THREE.Mesh(new THREE.PlaneGeometry(4.5,120), new THREE.MeshBasicMaterial({ color:'#33507e', transparent:true, opacity:.3, depthWrite:false })); pathLight.rotation.x=-Math.PI/2; pathLight.position.set(0,0.02,-6); g.add(pathLight);
 
+  // 边缘地形：远处缓丘，让地平线不再是一条直板
+  const hillMat=texMat({ tex:TEX.grass(35), color:'#33486e', repeat:[6,6], rough:1, bump:.026 });
+  [[-62,-50,34,5.5,26,11],[58,-64,30,4.6,24,12],[-78,20,28,4.0,22,13],[74,34,26,3.6,20,14],
+   [-30,-82,32,4.4,25,15],[36,74,30,3.8,24,16],[-86,-24,24,3.2,19,17],[82,-16,22,3.0,18,18]]
+   .forEach(([x,z,rx,h,rz,sd])=>mound(g,x,z,rx,h,rz,hillMat,sd));
+
   // 校园楼群（月光受光面 + 亮窗）
-  const bMat=new THREE.MeshStandardMaterial({ color:'#33486e', roughness:.8, flatShading:true });
-  const bMatDark=new THREE.MeshStandardMaterial({ color:'#26365a', roughness:.88, flatShading:true });
+  const bMat=texMat({ tex:TEX.plaster(33), color:'#5a7098', repeat:[3,4], rough:.82, bump:.02 });
+  const bMatDark=texMat({ tex:TEX.plaster(34), color:'#41547a', repeat:[2,4], rough:.9, bump:.02 });
   const winMat=new THREE.MeshBasicMaterial({ color:'#ffd9a0' });
   const bShadowMat=new THREE.MeshBasicMaterial({ color:'#0a0f20', transparent:true, opacity:.4, depthWrite:false });
   function building(x,z,w,d,h){
@@ -4172,6 +4428,30 @@ SceneBuilders.campus = function(){
   registerHotspot(g, 4, 7, -30, { r:2.6, scale:3.4, tint:0xcfe0ff, mid:'rgba(190,215,255,0.5)', title:'许愿流星', text:'向夜空许个愿吧。有些答案，交给时间去慢慢长出来。', act:()=>{ g.userData.wishT = sceneTime || 0; g.userData.wish.visible = true; } });
   registerHotspot(g, -20, 12.5, -17.6, { r:1.8, scale:3.8, tint:0xfff0c8, mid:'rgba(255,230,170,0.5)', title:'钟楼 · 夜色', text:'此刻无人在催你。时间，正为你放慢脚步。', act:()=>{ g.userData.clockFlash = sceneTime || 0; } });
   registerHotspot(g, 7, 3.4, 1, { r:1.2, scale:1.8, tint:0xffe2a8, mid:'rgba(255,205,140,0.5)', go:{d:3.2, look:[7,2.4,1]}, title:'路灯 · 留一盏光', text:'夜再深，也总有一盏灯，愿意为你亮着。', act:()=>{ g.userData.streetBoost = { i:1, t0: sceneTime || 0 }; } });
+  // ===== 外围扩展区：旧看台（东侧，扩边界后新增） =====
+  {
+    const concreteM=texMat({ tex:TEX.stone(36), color:'#6d7a96', repeat:[3,2], rough:.92, bump:.024 });
+    // 三级看台阶梯
+    for(let i=0;i<3;i++){
+      const st=box(11,0.5,1.4,concreteM); st.position.set(40,0.25+i*0.0,-34-i*1.5+1.5); g.add(st);
+      const rise=box(11,0.5,0.5,concreteM); rise.position.set(40,0.5+i*0.5,-34-i*1.5); g.add(rise);
+    }
+    // 锈蚀的球架
+    const rustM=new THREE.MeshStandardMaterial({ color:'#8a5a42', roughness:.72, metalness:.45 });
+    const post=cyl(0.11,0.13,4.2,rustM,8); post.position.set(44,2.1,-37); g.add(post);
+    const arm=box(0.1,0.1,1.3,rustM); arm.position.set(44,4.1,-36.4); g.add(arm);
+    const board=box(0.08,0.9,1.5,new THREE.MeshStandardMaterial({ color:'#d8d2c4', roughness:.85 })); board.position.set(44,4.0,-35.9); g.add(board);
+    const hoop=new THREE.Mesh(new THREE.TorusGeometry(0.34,0.045,8,18), new THREE.MeshStandardMaterial({ color:'#c0663a', roughness:.6, metalness:.5 }));
+    hoop.rotation.x=Math.PI/2; hoop.position.set(44,3.62,-35.75); g.add(hoop);
+    // 场地上的一道白线
+    const lineM=new THREE.MeshBasicMaterial({ color:'#aebcd8', transparent:true, opacity:.35, depthWrite:false });
+    const line=new THREE.Mesh(new THREE.PlaneGeometry(16,0.16), lineM); line.rotation.x=-Math.PI/2; line.position.set(40,0.03,-30); g.add(line);
+    g.userData.standT=-999;
+  }
+  registerHotspot(g, 41, 1.6, -34, { id:'cam.stand', r:2.4, scale:2.8, tint:0xffd9a0, op:.4, go:5.5, title:'旧看台',
+    text:'水泥台阶磨得发亮，球架上的漆掉了一半。没人来这里打球了，可坐下的那一下，还是当年那个位置。',
+    act:()=>{ SFX.thud(); g.userData.standT = sceneTime || 0; } });
+
   // 新增探索热点：天文台 / 星轨花园 / 老校门
   registerHotspot(g, 0, 3.8, -30, { id:'cam.observatory', r:2.4, scale:2.8, tint:0x7ec8ff, op:.4, go:6.0, title:'天文台',
     text:'穹顶的窄缝里漏出一线天光。有人彻夜在这里，把星星一颗颗数给你听。',
@@ -4199,8 +4479,8 @@ SceneBuilders.campus = function(){
   };
   Props.campus(g, rnd);
   return { group:g, ambient:['crickets','wind'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.4,-4],
-    walk:{ eye:1.66, b:{r:40},
-      col:[{x:-8.6,z:-6.6,r:3.9},{x:8.6,z:-1.4,r:1.0},{x:-5,z:2.6,r:1.3},{x:-5.4,z:-1.2,r:0.9},{x:-2.6,z:1.2,r:1.1},{x:-28,z:-14,r:3.4},{x:28,z:8,r:3.0},{x:0,z:-30,r:3.2}] } };
+    walk:{ eye:1.66, b:{r:58},
+      col:[{x:-8.6,z:-6.6,r:3.9},{x:8.6,z:-1.4,r:1.0},{x:-5,z:2.6,r:1.3},{x:-5.4,z:-1.2,r:0.9},{x:-2.6,z:1.2,r:1.1},{x:-28,z:-14,r:3.4},{x:28,z:8,r:3.0},{x:0,z:-30,r:3.2},{x:40,z:-34,r:5.5}] } };
 };
 
 /* ---------- 场景三：湖畔步道 ---------- */
@@ -4219,8 +4499,15 @@ SceneBuilders.lake = function(){
   const moon=makeGlowSprite(glowTex('#ffffff','rgba(205,225,255,0.5)'), 20,34,-70, 72); g.add(moon);
   const moonCore=makeGlowSprite(glowTex('#ffffff','rgba(235,242,255,0.95)'), 20,34,-70, 16, 0xeaf3ff); g.add(moonCore);
 
-  // 地面（月光下草地微亮）
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(160,120), new THREE.MeshStandardMaterial({ color:'#183029', roughness:1 })); ground.rotation.x=-Math.PI/2; g.add(ground);
+  // 地面（月光下草地微亮）——湿草纹理，靠近水边更细密
+  const groundMat=texMat({ tex:TEX.grass(41), color:'#26483a', repeat:[52,42], rough:1, bump:.022 });
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(210,170), groundMat); ground.rotation.x=-Math.PI/2; g.add(ground);
+
+  // 岸边土坡与远处缓丘：把湖岸线做出高低层次
+  const bankMat=texMat({ tex:TEX.grass(49), color:'#2e5242', repeat:[5,5], rough:1, bump:.03 });
+  [[-26,10,14,2.2,11,21],[24,16,13,1.9,10,22],[-30,-8,16,2.6,12,23],[28,-14,15,2.4,11,24],
+   [-40,32,22,3.4,17,25],[42,40,20,3.0,16,26],[-46,-28,20,3.2,15,27],[48,-30,18,2.8,14,28]]
+   .forEach(([x,z,rx,h,rz,sd])=>mound(g,x,z,rx,h,rz,bankMat,sd));
 
   // 湖面（shader 水）
   const waterGeo=new THREE.PlaneGeometry(70,70,64,64); waterGeo.rotateX(-Math.PI/2);
@@ -4265,7 +4552,7 @@ SceneBuilders.lake = function(){
   shore.rotation.x=-Math.PI/2; shore.position.set(0,0.04,-10); g.add(shore);
 
   // 长椅
-  const benchMat=new THREE.MeshStandardMaterial({ color:'#6b4d2e', roughness:.7 });
+  const benchMat=texMat({ tex:TEX.wood(42), color:'#8a6440', repeat:[2,1], rough:.7, bump:.016 });
   const bench=new THREE.Group();
   bench.add(put(box(2.0,0.08,0.5,benchMat),0,0.45,0));
   bench.add(put(box(2.0,0.08,0.5,benchMat),0,0.8,-0.45));
@@ -4286,8 +4573,8 @@ SceneBuilders.lake = function(){
   });
 
   // 树木
-  const tMat=new THREE.MeshStandardMaterial({ color:'#123528', roughness:.95 });
-  const crownMat=new THREE.MeshStandardMaterial({ color:'#17402f', roughness:.9, emissive:'#0b1c26', emissiveIntensity:.45 });
+  const tMat=texMat({ tex:TEX.bark(43), color:'#8a7a68', repeat:[2,3], rough:.95, bump:.045 });
+  const crownMat=texMat({ tex:TEX.foliage(44), color:'#4a7a5e', repeat:[2,2], rough:.9, bump:.02, emissive:'#0b1c26', emissiveIntensity:.45 });
   for(let i=0;i<16;i++){
     const side=i%2?1:-1; const x=3+side*(2.6+rnd()*4.4), z=-6+i*1.6;
     if(Math.hypot(x, z-9) < 5.6) continue;
@@ -4343,6 +4630,23 @@ SceneBuilders.lake = function(){
   }});
   registerHotspot(g, 5, 1.4, -8, { r:2.2, scale:2.8, tint:0xe0ffc0, mid:'rgba(210,255,180,0.5)', title:'流萤', text:'让萤火陪你走一段，暗处也有微光引路。', act:()=>{ g.userData.flyBoost = sceneTime || 0; } });
   registerHotspot(g, 17, 0.5, -9, { r:1.6, scale:2.2, tint:0xe8f2ff, mid:'rgba(220,235,255,0.5)', title:'月下倒影', text:'月光碎在湖面，像把心事也一并揉碎了、放轻了。', act:()=>{ g.userData.moonT = sceneTime || 0; } });
+  // ===== 外围扩展区：浅滩渡口（南岸，扩边界后新增） =====
+  {
+    const dockM=texMat({ tex:TEX.plank(70), color:'#8a6a48', repeat:[3,1], rough:.85, bump:.022 });
+    for(let i=0;i<5;i++){ const p=box(3.0,0.1,0.66,dockM); p.position.set(18,0.42,20+i*0.72); g.add(p); }
+    const postM=texMat({ tex:TEX.wood(71), color:'#7a5c40', repeat:[1,1], rough:.86, bump:.02 });
+    [[16.7,21.2],[19.3,21.2],[16.7,23.2],[19.3,23.2]].forEach(([px,pz])=>{
+      const p=cyl(0.11,0.13,1.5,postM,8); p.position.set(px,0.45,pz); g.add(p); });
+    // 浅水卵石
+    const pebM=texMat({ tex:TEX.stone(72), color:'#8a9088', repeat:[1,1], rough:.9, bump:.02 });
+    for(let i=0;i<12;i++){ const pb=sph(0.13+rnd()*0.17, pebM, 8); pb.scale.y=0.58;
+      pb.position.set(13+rnd()*11, 0.05, 24+rnd()*3.4); g.add(pb); }
+    g.userData.fordT=-999;
+  }
+  registerHotspot(g, 18, 1.2, 22, { id:'lake.ford', r:2.0, scale:2.4, tint:0xffd9a0, op:.4, go:5.0, title:'浅滩渡口',
+    text:'旧木栈板一块块伸进水里，桩子上还留着系过船的勒痕。船走了很久了，水还在轻轻拍着它。',
+    act:()=>{ SFX.water(); g.userData.fordT = sceneTime || 0; } });
+
   // 新增探索热点：湖畔水榭 / 观景台
   registerHotspot(g, -11, 2.0, -5, { id:'lake.pavilion', r:2.0, scale:2.4, tint:0xffd9a0, op:.4, go:5.5, title:'湖畔水榭',
     text:'水榭伸进湖心，风从四面来。扶着栏杆，听水一下一下拍着桩。',
@@ -4367,7 +4671,7 @@ SceneBuilders.lake = function(){
   };
   Props.lake(g, rnd);
   return { group:g, ambient:['water','wind','crickets'], fog, background:bg, cameraPos:[0,1.6,9], lookAt:[0,1.3,-6],
-    walk:{ eye:1.66, b:{x0:-16,x1:16,z0:-13,z1:20},
+    walk:{ eye:1.66, b:{x0:-22,x1:22,z0:-19,z1:27},
       col:[{x:4.5,z:6,r:1.2},{x:-2.6,z:1.6,r:0.9},{x:4.2,z:1.4,r:0.7},{x:-11,z:-5,r:1.6},{x:12,z:14,r:1.8},{x:-14,z:12,r:1.5}] } };
 };
 
@@ -4384,18 +4688,30 @@ SceneBuilders.ginkgo = function(){
   const sunCore=makeGlowSprite(glowTex('#ffffff','rgba(255,240,200,0.9)'), 0,10,-150, 30, 0xfff0c0); g.add(sunCore);
 
   // 地面与大道（含落叶堆积的地面纹理）
-  const leafCarpet=makeCanvas(256,256,(c,w,h)=>{ c.fillStyle='#8a6a3f'; c.fillRect(0,0,w,h); c.fillStyle='rgba(201,167,101,0.0)';
-    for(let i=0;i<220;i++){ const gx=Math.random()*w, gy=Math.random()*h; const s=2+Math.random()*6; c.fillStyle='rgba(201,150,70,0.25)'; c.fillRect(gx,gy,s*0.35,s); c.fillStyle='rgba(180,120,50,0.2)'; c.fillRect(gx+1,gy+1,s*0.3,s*0.7); }
+  const leafCarpet=makeCanvas(256,256,(c,w,h)=>{ c.fillStyle='#c9a878'; c.fillRect(0,0,w,h);
+    for(let i=0;i<520;i++){ const gx=Math.random()*w, gy=Math.random()*h; const s=2+Math.random()*7;
+      c.fillStyle='rgba(160,108,52,'+(0.10+Math.random()*0.22).toFixed(3)+')'; c.fillRect(gx,gy,s*0.4,s);
+      c.fillStyle='rgba(230,190,120,'+(0.05+Math.random()*0.14).toFixed(3)+')'; c.fillRect(gx+1,gy+1,s*0.3,s*0.7); }
+    // 细碎叶脉噪点
+    for(let i=0;i<1600;i++){ c.fillStyle='rgba(90,60,26,'+(Math.random()*0.14).toFixed(3)+')'; c.fillRect(Math.random()*w,Math.random()*h,1,1); }
   });
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(220,260), new THREE.MeshStandardMaterial({ map:leafCarpet, roughness:1 })); ground.rotation.x=-Math.PI/2; g.add(ground);
-  const path=new THREE.Mesh(new THREE.PlaneGeometry(5,260), new THREE.MeshStandardMaterial({ color:'#d3b377', roughness:.95 })); path.rotation.x=-Math.PI/2; g.add(path);
+  leafCarpet.wrapS=leafCarpet.wrapT=THREE.RepeatWrapping; leafCarpet.repeat.set(34,40); leafCarpet.anisotropy=4;
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(290,340), new THREE.MeshStandardMaterial({ map:leafCarpet, bumpMap:leafCarpet, bumpScale:.02, roughness:1 })); ground.rotation.x=-Math.PI/2; g.add(ground);
+  const pathMat=texMat({ tex:TEX.stone(45), color:'#e8cf9a', repeat:[2,64], rough:.95, bump:.012 });
+  const path=new THREE.Mesh(new THREE.PlaneGeometry(5,340), pathMat); path.rotation.x=-Math.PI/2; g.add(path);
   // 道路中心磨损发亮
-  const pathWear=new THREE.Mesh(new THREE.PlaneGeometry(3,260), new THREE.MeshStandardMaterial({ color:'#e2c68c', roughness:.9 })); pathWear.rotation.x=-Math.PI/2; pathWear.position.y=0.01; g.add(pathWear);
+  const pathWear=new THREE.Mesh(new THREE.PlaneGeometry(3,340), new THREE.MeshStandardMaterial({ color:'#e2c68c', roughness:.9, transparent:true, opacity:.55 })); pathWear.rotation.x=-Math.PI/2; pathWear.position.y=0.01; g.add(pathWear);
+
+  // 边缘地形：土黄缓丘，让大道两侧不再是一块平直的地面
+  const duneMat=texMat({ tex:TEX.grass(50), color:'#c8a068', repeat:[5,5], rough:1, bump:.028 });
+  [[-56,10,26,3.8,20,31],[58,4,24,3.4,18,32],[-52,-34,28,4.2,22,33],[54,-40,26,3.8,20,34],
+   [-60,40,22,3.2,17,35],[62,44,20,3.0,16,36],[-24,-62,30,4.6,23,37],[26,58,26,3.6,20,38]]
+   .forEach(([x,z,rx,h,rz,sd])=>mound(g,x,z,rx,h,rz,duneMat,sd));
 
   // 银杏树（冠更蓬松、加地面投影椭圆）
-  const crownMat=new THREE.MeshStandardMaterial({ color:'#eab350', roughness:.82, emissive:'#8a5d10', emissiveIntensity:.2 });
-  const crownMat2=new THREE.MeshStandardMaterial({ color:'#f0c76a', roughness:.82, emissive:'#9a6a18', emissiveIntensity:.16 });
-  const trunkMat=new THREE.MeshStandardMaterial({ color:'#5a4028', roughness:.9 });
+  const crownMat=texMat({ tex:TEX.foliage(46), color:'#f0c05a', repeat:[2,2], rough:.82, bump:.02, emissive:'#8a5d10', emissiveIntensity:.2 });
+  const crownMat2=texMat({ tex:TEX.foliage(47), color:'#f7d078', repeat:[2,2], rough:.82, bump:.02, emissive:'#9a6a18', emissiveIntensity:.16 });
+  const trunkMat=texMat({ tex:TEX.bark(48), color:'#8a7154', repeat:[1,2], rough:.9, bump:.045 });
   const shadowMat=new THREE.MeshBasicMaterial({ color:'#6a4a28', transparent:true, opacity:.3, depthWrite:false });
   function tree(x,z,s){
     const t=cyl(0.22*s,0.34*s,3.4*s,trunkMat); t.position.set(x,1.7*s,z); g.add(t);
@@ -4468,6 +4784,29 @@ SceneBuilders.ginkgo = function(){
   registerHotspot(g, -3.2, 3.5, 2, { r:2.6, scale:3.2, tint:0xf7c86a, mid:'rgba(247,200,106,0.5)', title:'金叶飘落', text:'让烦恼像金叶一样，一片一片地放下。', act:()=>{ g.userData.burstT = sceneTime || 0; } });
   registerHotspot(g, 0, 7, -45, { r:3.5, scale:4.2, tint:0xfff2d0, mid:'rgba(255,230,170,0.5)', title:'暖阳', text:'阳光正暖，你值得被这样温柔地对待。', act:()=>{ g.userData.warmT = sceneTime || 0; } });
   registerHotspot(g, -4.2, 1.1, 2, { r:1.3, scale:2.0, tint:0xffe2b0, mid:'rgba(255,210,140,0.5)', go:3.0, title:'长椅 · 歇一歇', text:'走累的时候，就坐下来。这里有一束暖光，专程为你留。', act:()=>{ g.userData.seatT = sceneTime || 0; } });
+  // ===== 外围扩展区：金色小丘（西南侧，扩边界后新增） =====
+  {
+    // 一座可以走上去的缓坡（用土丘做视觉，坡上铺一条踏出来的路）
+    const hillM=texMat({ tex:TEX.grass(51), color:'#d8b070', repeat:[3,3], rough:1, bump:.026 });
+    mound(g, -36, -16, 11, 2.4, 9, hillM, 39);
+    // 坡上的落叶堆得更厚
+    const pileM=texMat({ tex:TEX.fabric(52), color:'#e8b860', repeat:[2,2], rough:.95, bump:.02 });
+    for(let i=0;i<9;i++){ const a=rnd()*Math.PI*2, rr=rnd()*7;
+      const pl=sph(0.7+rnd()*0.9, pileM, 8); pl.scale.y=0.26;
+      pl.position.set(-36+Math.cos(a)*rr, 0.16+Math.max(0,1-Math.hypot(Math.cos(a)*rr,Math.sin(a)*rr)/8)*1.9, -16+Math.sin(a)*rr); g.add(pl); }
+    // 坡顶一棵最大的银杏
+    const bigTrunk=texMat({ tex:TEX.bark(53), color:'#8a7154', repeat:[2,3], rough:.9, bump:.045 });
+    const bt=cyl(0.5,0.78,7.2,bigTrunk,10); bt.position.set(-36,2.4+3.6,-16); g.add(bt);
+    const bigCrown=texMat({ tex:TEX.foliage(54), color:'#f7cc6a', repeat:[2,2], rough:.82, bump:.02, emissive:'#9a6a18', emissiveIntensity:.22 });
+    for(let i=0;i<9;i++){ const a=i/9*Math.PI*2, rr=1.6+rnd()*1.5;
+      const c=sph(1.5+rnd()*0.9, bigCrown, 12);
+      c.position.set(-36+Math.cos(a)*rr, 10.2+rnd()*1.6, -16+Math.sin(a)*rr); g.add(c); }
+    g.userData.hillT=-999;
+  }
+  registerHotspot(g, -36, 5.0, -16, { id:'ginkgo.goldHill', r:2.6, scale:3.0, tint:0xffe0a0, op:.4, go:7.0, title:'金色小丘',
+    text:'顺着缓坡爬上去，落叶在脚下簌簌地滑。坡顶那棵树最大，叶子最亮。站高了才发现，整条大道原来那么长。',
+    act:()=>{ SFX.chime(); g.userData.hillT = sceneTime || 0; } });
+
   // 新增探索热点：观叶亭 / 落叶小径 / 大道尽头
   registerHotspot(g, 10.5, 2.8, -9, { id:'ginkgo.pavilion', r:2.0, scale:2.4, tint:0xf7c86a, op:.4, go:6.0, title:'观叶亭',
     text:'从亭子里望出去，整条大道都是一片金黄。原来风景一直在这里，只是你忘了抬头。',
@@ -4501,8 +4840,8 @@ SceneBuilders.ginkgo = function(){
   };
   Props.ginkgo(g, rnd);
   return { group:g, ambient:['birds','leaves'], fog, background:bg, cameraPos:[0,1.6,16], lookAt:[0,1.6,-6],
-    walk:{ eye:1.66, b:{r:40},
-      col:[{x:-5.8,z:3.2,r:1.9},{x:-4.2,z:2,r:1.0},{x:4.2,z:14,r:1.0},{x:-4.6,z:9.4,r:0.7},{x:9,z:-8,r:1.7},{x:-9,z:20,r:1.8},{x:0,z:-28,r:2.0}] } };
+    walk:{ eye:1.66, b:{r:50},
+      col:[{x:-5.8,z:3.2,r:1.9},{x:-4.2,z:2,r:1.0},{x:4.2,z:14,r:1.0},{x:-4.6,z:9.4,r:0.7},{x:10.5,z:-9,r:1.7},{x:-9,z:20,r:1.8},{x:0,z:-28,r:2.0}] } };
 };
 
 /* ---------- 数字简谱提示面板（悬浮钢琴上方 · 跟弹练习引导 / 自动示范） ---------- */
@@ -4648,19 +4987,21 @@ SceneBuilders.hall = function(){
   const bg=new THREE.Color('#241a1d'); const fog=new THREE.Fog('#241a1d', 14, 68);
 
   // 大厅地面与墙面
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(70,70), new THREE.MeshStandardMaterial({ color:'#6b4328', roughness:.9 })); floor.rotation.x=-Math.PI/2; g.add(floor);
-  const wallMat=new THREE.MeshStandardMaterial({ color:'#3a2c32', roughness:.96 });
+  const floor=texMat({ tex:TEX.plank(51), color:'#8f5f3c', repeat:[16,16], rough:.88, bump:.018 });
+  const floorMesh=new THREE.Mesh(new THREE.PlaneGeometry(70,70), floor); floorMesh.rotation.x=-Math.PI/2; g.add(floorMesh);
+  const wallMat=texMat({ tex:TEX.plaster(52), color:'#5c4a52', repeat:[10,3], rough:.96, bump:.014 });
   const back=new THREE.Mesh(new THREE.PlaneGeometry(70,16), wallMat); back.position.set(0,8,-15); g.add(back);
   const left=new THREE.Mesh(new THREE.PlaneGeometry(70,16), wallMat); left.position.set(-28,8,0); left.rotation.y=Math.PI/2; g.add(left);
   const right=new THREE.Mesh(new THREE.PlaneGeometry(70,16), wallMat); right.position.set(28,8,0); right.rotation.y=-Math.PI/2; g.add(right);
   const ceil=new THREE.Mesh(new THREE.PlaneGeometry(70,70), wallMat); ceil.rotation.x=Math.PI/2; ceil.position.y=16; g.add(ceil);
 
   // 舞台
-  const stage=new THREE.Mesh(new THREE.BoxGeometry(22,0.5,10), new THREE.MeshStandardMaterial({ color:'#6b4028', roughness:.85 })); stage.position.set(0,0.25,-5.5); g.add(stage);
-  const stageEdge=new THREE.Mesh(new THREE.BoxGeometry(22.2,0.14,0.5), new THREE.MeshStandardMaterial({ color:'#5a3a26', roughness:.7 })); stageEdge.position.set(0,0.55,-0.45); g.add(stageEdge);
+  const stageMat=texMat({ tex:TEX.plank(53), color:'#9a6440', repeat:[8,4], rough:.82, bump:.018 });
+  const stage=new THREE.Mesh(new THREE.BoxGeometry(22,0.5,10), stageMat); stage.position.set(0,0.25,-5.5); g.add(stage);
+  const stageEdge=new THREE.Mesh(new THREE.BoxGeometry(22.2,0.14,0.5), texMat({ tex:TEX.wood(54), color:'#8a5a38', repeat:[10,1], rough:.7, bump:.014 })); stageEdge.position.set(0,0.55,-0.45); g.add(stageEdge);
 
   // 幕布（红色丝绒）
-  const curtainMat=new THREE.MeshStandardMaterial({ color:'#7a2430', roughness:.95, emissive:'#2a0a10', emissiveIntensity:.6 });
+  const curtainMat=texMat({ tex:TEX.fabric(55), color:'#a03848', repeat:[2,3], rough:.95, bump:.02, emissive:'#2a0a10', emissiveIntensity:.6 });
   [-8.5,-3.2,3.2,8.5].forEach(x=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(6,9), curtainMat); m.position.set(x,5.6,-12.9); g.add(m); });
   const curtainTop=new THREE.Mesh(new THREE.BoxGeometry(24,0.9,0.5), new THREE.MeshStandardMaterial({ color:'#4a141d', roughness:.9 })); curtainTop.position.set(0,9.6,-12.9); g.add(curtainTop);
 
