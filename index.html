@@ -4656,14 +4656,14 @@ SceneBuilders.library = function(){
 
   // 互动热点：台灯开关 / 窗外听雨 / 翻开的书
   g.userData.lampLight=lampLight; g.userData.lampShade=lampShade; g.userData.lampOn=true; g.userData.rainBoost=-999; g.userData.bookT=-999;
-  registerHotspot(g, 1.4, 0.95, -3.2, { r:0.85, scale:1.4, tint:0xffe2a8, mid:'rgba(255,205,140,0.5)', go:3.2, title:'书灯', text:'灯已为你留亮。让暖光与雨声，陪你把紧绷慢慢放下。', act:()=>{ g.userData.lampOn = !g.userData.lampOn; } });
+  registerHotspot(g, 1.48, 0.95, -3.24, { r:0.38, scale:0.95, tint:0xffe2a8, mid:'rgba(255,205,140,0.5)', go:3.2, title:'书灯', text:'灯已为你留亮。让暖光与雨声，陪你把紧绷慢慢放下。', act:()=>{ g.userData.lampOn = !g.userData.lampOn; } });
   registerHotspot(g, 0, 5.0, -7.8, { r:1.4, scale:1.9, tint:0xa8c8ec, mid:'rgba(168,200,236,0.5)', title:'窗外的雨', text:'雨声渐密。让纷乱的思绪，随雨丝一起落下、归静。', act:()=>{ g.userData.rainBoost = sceneTime || 0; } });
-  registerHotspot(g, 0, 0.98, -3.2, { r:0.7, scale:1.3, tint:0xf0e6c8, mid:'rgba(240,230,200,0.5)', title:'翻开的书', text:'把今天的凌乱，一页一页，轻轻合进书里。', act:()=>{ g.userData.bookT = sceneTime || 0; } });
+  registerHotspot(g, 0, 0.98, -3.2, { r:0.42, scale:0.95, tint:0xf0e6c8, mid:'rgba(240,230,200,0.5)', title:'翻开的书', text:'把今天的凌乱，一页一页，轻轻合进书里。', act:()=>{ g.userData.bookT = sceneTime || 0; } });
   // 新增探索热点：阅读角 / 壁炉
   registerHotspot(g, 0, 0.9, 6.8, { id:'lib.reading', r:1.0, scale:1.4, tint:0xffe2b0, op:.4, go:3.0, title:'阅读角',
     text:'两把旧沙发对着一张圆几，茶几上的书堆得歪歪的。坐下来，就着暖光读两页，或者只是发呆。',
     act:()=>{ SFX.page(); g.userData.readT = sceneTime || 0; } });
-  registerHotspot(g, -6, 1.5, 4.4, { id:'lib.fireplace', r:1.2, scale:1.6, tint:0xff9a4a, op:.4, go:3.0, title:'壁炉',
+  registerHotspot(g, -6, 1.5, 4.4, { id:'lib.fireplace', r:1.0, scale:1.35, tint:0xff9a4a, op:.4, go:3.0, title:'壁炉',
     text:'炉火噼啪地响，把屋里的冷意一点点赶走。靠近一点，火光会把影子也照暖。',
     act:()=>{ g.userData.fireT = sceneTime || 0; SFX.water(); } });
 
@@ -4944,7 +4944,7 @@ SceneBuilders.lake = function(){
   // 湖面（shader 水）
   const waterGeo=new THREE.PlaneGeometry(74,50,72,48); waterGeo.rotateX(-Math.PI/2);
   const waterMat=new THREE.ShaderMaterial({
-    uniforms:{ uTime:{value:0}, cDeep:{value:new THREE.Color('#0f3a52')}, cShallow:{value:new THREE.Color('#3f9cc8')} },
+    uniforms:{ uTime:{value:0}, cDeep:{value:new THREE.Color('#0a2a3c')}, cShallow:{value:new THREE.Color('#2b7594')} },
     vertexShader:`uniform float uTime; varying vec3 vWorldPos; varying float vFres;
       void main(){ vec3 p=position;
         float w=sin(p.x*0.35+uTime*0.8)*0.06+sin(p.z*0.3+uTime*0.6)*0.05+sin((p.x+p.z)*0.12+uTime*1.3)*0.04; p.y+=w;
@@ -4956,8 +4956,13 @@ SceneBuilders.lake = function(){
         vFres=pow(1.0-abs(dot(nv,vv)),2.0);
         gl_Position=projectionMatrix*mv; }`,
     fragmentShader:`uniform float uTime; uniform vec3 cDeep; uniform vec3 cShallow; varying vec3 vWorldPos; varying float vFres;
-      void main(){ float ripple=0.5+0.5*sin(vWorldPos.x*1.5+vWorldPos.z*1.3+uTime*1.15+sin(vWorldPos.x*0.6+uTime*0.8)*1.5);
-        vec3 col=mix(cDeep,cShallow,clamp(vFres*1.5+ripple*0.12,0.0,1.0)); col+=vec3(0.10,0.16,0.20)*ripple*vFres;
+      void main(){
+        // 三向叠加：单方向正弦会在透视下压成一排平行条纹，看起来像布纹
+        float r1=sin(vWorldPos.x*1.7+vWorldPos.z*1.4+uTime*1.15);
+        float r2=sin(vWorldPos.x*0.85-vWorldPos.z*2.1+uTime*0.83);
+        float r3=sin(vWorldPos.x*3.1+vWorldPos.z*0.7+uTime*1.62);
+        float ripple=clamp(0.5+0.30*r1+0.24*r2+0.14*r3,0.0,1.0);
+        vec3 col=mix(cDeep,cShallow,clamp(vFres*1.35+ripple*0.07,0.0,1.0)); col+=vec3(0.05,0.08,0.11)*ripple*vFres;
         // 月光倒影：沿观察方向拉长的光柱，随波纹柔软闪烁
         vec2 dv=vWorldPos.xz-vec2(17.0,-9.0);
         float gauss=exp(-(dv.x*dv.x)/(4.2*4.2)-(dv.y*dv.y)/(16.0*16.0));
@@ -5101,7 +5106,7 @@ SceneBuilders.lake = function(){
 
   // 互动热点：湖心涟漪 / 流萤 / 月下倒影
   g.userData.ripples=[]; g.userData.flyBoost=-999; g.userData.moonT=-999;
-  registerHotspot(g, 1.5, 0.5, -7, { r:1.3, scale:1.9, tint:0xbfe6ff, mid:'rgba(180,225,255,0.5)', go:3.4, title:'湖心涟漪', text:'轻轻点向湖面，一圈圈涟漪荡开，心也随之安静下来。', act:()=>{
+  registerHotspot(g, 1.5, 0.5, -7, { r:1.05, scale:1.7, tint:0xbfe6ff, mid:'rgba(180,225,255,0.5)', go:3.4, title:'湖心涟漪', text:'轻轻点向湖面，一圈圈涟漪荡开，心也随之安静下来。', act:()=>{
     const ring=new THREE.Mesh(new THREE.RingGeometry(0.3,0.42,40), new THREE.MeshBasicMaterial({ color:'#bfe6ff', transparent:true, opacity:0.7, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide }));
     ring.rotation.x=-Math.PI/2; ring.position.set(1.5,0.30,-7); g.add(ring);
     g.userData.ripples.push({ mesh:ring, t0: sceneTime || 0 });
@@ -5759,10 +5764,10 @@ SceneBuilders.hall = function(){
   }
 
   // 互动热点：琴盖开合 / 舞台追光
-  registerHotspot(g, 0, 1.78, -5.0, { r:1.2, scale:1.8, tint:0xd8e2ff, mid:'rgba(210,225,255,0.5)', go:4.6, title:'琴盖', text:'轻轻掀开琴盖，让声音与呼吸，都找到一个出口。', act:()=>{ g.userData.lidOpen = !g.userData.lidOpen; g.userData.lidT = sceneTime || 0; } });
+  registerHotspot(g, 0, 1.78, -5.0, { r:0.85, scale:1.55, tint:0xd8e2ff, mid:'rgba(210,225,255,0.5)', go:4.6, title:'琴盖', text:'轻轻掀开琴盖，让声音与呼吸，都找到一个出口。', act:()=>{ g.userData.lidOpen = !g.userData.lidOpen; g.userData.lidT = sceneTime || 0; } });
   registerHotspot(g, 0, 7.0, -3.0, { r:1.5, scale:2.6, tint:0xffe2b0, mid:'rgba(255,210,140,0.5)', title:'舞台追光', text:'这一刻，聚光灯只为你而亮。你本就是自己的主角。', act:()=>{ g.userData.flash = 1; } });
   /* 音乐库入口：点侧台的唱片架，打开音乐库（不计入「发现」统计） */
-  registerHotspot(g, -7.4, 1.55, -6.25, { r:1.0, scale:1.35, tint:0xffd9a0, mid:'rgba(255,210,150,0.5)', go:3.6,
+  registerHotspot(g, -7.4, 1.55, -6.25, { r:0.66, scale:1.10, tint:0xffd9a0, mid:'rgba(255,210,150,0.5)', go:3.6,
     title:'侧台的唱片架',
     text:'七张封套斜插在架子里，最外面那本写着一行小字：想听哪一首，自己挑。——点开它，就是音乐库。',
     act:()=>{ SFX.page(); openLibrary(); } });
@@ -5817,7 +5822,7 @@ Props.library = function(g, rnd){
   g.add(mug);
   const steamTex=glowTex('#ffffff','rgba(235,245,255,0.35)');
   const steams=[0,1,2].map(()=>{ const s=makeGlowSprite(steamTex,0.8,1.0,-2.9,0.2); s.material.opacity=0; s.renderOrder=6; g.add(s); return s; });
-  registerHotspot(g, 0.8, 0.95, -2.9, { id:'lib.mug', r:0.36, scale:0.66, tint:0xdfe6ee, title:'一杯温茶',
+  registerHotspot(g, 0.98, 0.95, -2.72, { id:'lib.mug', r:0.28, scale:0.60, tint:0xdfe6ee, title:'一杯温茶',
     text:'茶还温着。不必急着喝完，先让手心暖一暖。',
     act:()=>{ SFX.cup(); g.userData.mugT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -5843,7 +5848,7 @@ Props.library = function(g, rnd){
     plant.add(l); leaves.push(l);
   }
   plant.scale.setScalar(1.35); g.add(plant);
-  registerHotspot(g, -3.55, 2.68, -7.48, { id:'lib.plant', r:0.42, scale:0.7, tint:0xa8e0b8, title:'窗台的绿意',
+  registerHotspot(g, -3.55, 2.68, -7.48, { id:'lib.plant', r:0.36, scale:0.66, tint:0xa8e0b8, title:'窗台的绿意',
     text:'它一直在窗边，替你晒太阳。你也该被好好照顾，哪怕只是一点点。',
     act:()=>{ SFX.page(); g.userData.plantT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -5909,7 +5914,7 @@ Props.campus = function(g, rnd){
   bench.add(put(box(0.08,0.44,0.44,metal),-0.86,0.22,0));
   bench.add(put(box(0.08,0.44,0.44,metal),0.86,0.22,0));
   g.add(bench);
-  registerHotspot(g, -5.0, 0.7, 2.6, { id:'cam.bench', r:0.8, scale:1.15, tint:0xffe2a8, go:3.0, title:'路边的长椅',
+  registerHotspot(g, -5.0, 1.05, 2.6, { id:'cam.bench', r:0.42, scale:0.92, tint:0xffe2a8, go:3.0, title:'路边的长椅',
     text:'木头还留着白天的余温。坐一会儿吧，没有人会催你。',
     act:()=>{ SFX.thud(); g.userData.benchT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -6213,7 +6218,7 @@ Props.ginkgo = function(g, rnd){
   g.add(post);
   const letter=new THREE.Mesh(new THREE.PlaneGeometry(0.18,0.11), new THREE.MeshStandardMaterial({ color:'#f6efdc', roughness:.6, side:THREE.DoubleSide }));
   letter.position.set(-4.6,1.02,9.63); letter.rotation.x=-0.4; letter.visible=false; g.add(letter);
-  registerHotspot(g, -4.6, 1.05, 9.6, { id:'gin.post', r:0.55, scale:0.9, tint:0xf2c48a, go:2.8, title:'老邮筒',
+  registerHotspot(g, -4.6, 1.05, 9.6, { id:'gin.post', r:0.42, scale:0.85, tint:0xf2c48a, go:2.8, title:'老邮筒',
     text:'你写了一张没有地址的明信片，投进去。有些话不必寄到谁手里，写下来就已经轻了一半。',
     act:()=>{ SFX.page(); g.userData.postT=sceneTime; letter.visible=true; } });
   ticks.push((dt,t)=>{
@@ -6344,7 +6349,7 @@ Props.hall = function(g, rnd){
   g.add(stool);
   const program=new THREE.Mesh(new THREE.PlaneGeometry(0.26,0.34), new THREE.MeshStandardMaterial({ color:'#f2ead6', roughness:.7, side:THREE.DoubleSide }));
   program.rotation.x=-Math.PI/2; program.rotation.z=0.28; program.position.set(-4.9,0.46,-1.7); g.add(program);
-  registerHotspot(g, -4.9, 0.5, -1.7, { id:'hall.program', faint:true, r:0.44, scale:0.58, tint:0xfff2c8, go:2.8, title:'琴凳上的节目单',
+  registerHotspot(g, -4.9, 0.5, -1.7, { id:'hall.program', faint:true, r:0.34, scale:0.58, tint:0xfff2c8, go:2.8, title:'琴凳上的节目单',
     text:'节目单背面有一行铅笔字：「今天手很抖，但我还是弹完了。」落款是三年前。',
     act:()=>{ SFX.page(); g.userData.progT=sceneTime; } });
   ticks.push((dt,t)=>{
@@ -6489,7 +6494,20 @@ const RECIPE = {
   windmill:[[1,.012,.7,0,0,.35,0,'#c9b8a0'],[0,.28,.02,.28,0,.72,-.02,'#e8b04a'],[0,.2,.02,.2,0,.72,-.03,'#c95a4a',0,0,0,0,.78]],
 
   /* —— 音乐厅 —— */
-  harp:[[4,.5,0.03,0,0,.9,0,'#c9a24a'],[0,.1,.16,1.4,0,.7,-.42,'#8a5a2c'],[1,.05,.9,0,0,.45,.2,'#8a5a2c'],[1,.05,.5,0,-.25,.25,.2,'#8a5a2c']],
+  harp:[
+    [0,.13,1.30,.32, -0.30,0.70,0, '#b08a3e',null,0,0,0,0.10],   // 共鸣箱（略向内倾）
+    [0,.86,.09,.36,   0.02,0.05,0, '#8a6a32'],                  // 底座
+    [1,.032,1.45,  0, 0.32,0.76,0, '#c9a24a'],                  // 前柱
+    [1,.028,.72,   0, 0.02,1.40,0, '#c9a24a',null,0,0,0,-1.35], // 琴颈
+    [1,.005,1.17,  0,-0.21,0.68,0.09,'#e2d7ba'],                // 弦 ×8（底端落在琴座上）
+    [1,.005,1.17,  0,-0.15,0.68,0.09,'#e2d7ba'],
+    [1,.005,1.17,  0,-0.09,0.68,0.09,'#e2d7ba'],
+    [1,.005,1.17,  0,-0.03,0.68,0.09,'#e2d7ba'],
+    [1,.005,1.17,  0, 0.03,0.68,0.09,'#e2d7ba'],
+    [1,.005,1.17,  0, 0.09,0.68,0.09,'#e2d7ba'],
+    [1,.005,1.17,  0, 0.15,0.68,0.09,'#e2d7ba'],
+    [1,.005,1.17,  0, 0.21,0.68,0.09,'#e2d7ba']
+  ],
   celloCase:[[0,.4,.9,.26,0,.45,0,'#2b2b33'],[0,.42,.1,.28,0,.9,0,'#3a3a42'],[4,.06,.012,0,0,.6,.14,'#c9a24a',0,0,0,0,0]],
   timpani:[[2,.4,0,0,0,.4,0,'#b08a4a'],[2,.42,.01,0,0,.62,0,'#d8c8a8'],[1,.06,.4,0,0,.2,0,'#5a5a66']],
   baton:[[1,.008,.4,0,0,.2,0,'#e8e2d0',0,0,.3,0,0],[0,.03,.002,.03,0,.4,0,'#f6f2e8']],
@@ -6515,18 +6533,18 @@ const RECIPE = {
 /* 物件表： [配方, 位置, 旋转, 亮度, 动作, 音效, 标题, 文案] */
 const ITEMS = {
   library: [
-    {k:'teapot',   p:[0.72,0.845,-3.3], op:.80, anim:'glow', sfx:'cup', t:'还温着的茶壶', d:'壶身一圈水汽。有人替你续过水，可能就是这个房间。'},
+    {k:'teapot',   p:[0.70,0.845,-3.36], op:.80, r:0.26, anim:'glow', sfx:'cup', t:'还温着的茶壶', d:'壶身一圈水汽。有人替你续过水，可能就是这个房间。'},
     {k:'pen',      p:[-3.2,2.5,-5.0], rot:.5, op:.40, sfx:'tick', t:'钢笔', d:'笔尖有点干，写下的字会粗一点，正好不用太用力。'},
     {k:'glasses',  p:[-3.2,1.55,-5.0], op:.40, sfx:'tick', t:'摘下眼镜', d:'摘下它，世界就柔了一层。模糊一点也没什么不好。'},
-    {k:'notebook', p:[-0.72,0.845,-3.16], rot:.18, op:.80, sfx:'page', t:'摊开的笔记本', d:'最后一页只写了日期。有些日子，留白比记录更诚实。'},
+    {k:'notebook', p:[-0.86,0.845,-3.10], rot:.18, op:.80, r:0.32, sfx:'page', t:'摊开的笔记本', d:'最后一页只写了日期。有些日子，留白比记录更诚实。'},
     {k:'bookmark', p:[3.6,0.85,-5.0], op:.15, sfx:'page', t:'书签', d:'一枚压干的金叶，夹在第七十二页——那天你读到一半睡着了。', faint:true},
     {k:'bookStack',p:[-5.2,0,-4.5], rot:.1, op:.40, sfx:'thud', t:'一摞书', d:'最上面那本一直没翻过。它不催你，只是等着。'},
     {k:'photoFrame',p:[1.6,0.85,-7.4], rot:-.3, op:.80, sfx:'thud', t:'相框', d:'照片里是三年前的春天。你笑得很用力，也很真。'},
     {k:'radio',    p:[1.6,2.05,-7.4], rot:-.2, op:.40, anim:'glow', sfx:'tick', t:'旧收音机', d:'旋钮转到最左，是沙沙的空白。空白也是声音。'},
     {k:'sugarJar', p:[3.2,2.5,-5.0], op:.40, sfx:'cup', t:'糖罐', d:'还剩两块方糖。都放进去吧，今天不用省。'},
-    {k:'globe',    p:[3.2,1.55,-5.0], op:.40, anim:'spin', sfx:'thud', t:'地球仪', d:'轻轻一推，它就转个不停。世界比你以为的更大，也比你以为的更远。'},
+    {k:'globe',    p:[3.2,1.55,-5.0], op:.40, r:0.36, anim:'spin', sfx:'thud', t:'地球仪', d:'轻轻一推，它就转个不停。世界比你以为的更大，也比你以为的更远。'},
     {k:'dictionary',p:[-1.6,2.05,-7.4], op:.15, sfx:'page', t:'旧词典', d:'书脊里夹着一张车票，终点站你从没去过。', faint:true},
-    {k:'cactus',   p:[-4.2,2.42,-7.72], op:.40, sfx:'tick', t:'窗台仙人掌', d:'很久才浇一次水，它也活得好好的。你也是。'},
+    {k:'cactus',   p:[-4.32,2.42,-7.80], op:.40, r:0.32, sfx:'tick', t:'窗台仙人掌', d:'很久才浇一次水，它也活得好好的。你也是。'},
     {k:'postcard', p:[5.2,4.6,-7.9], rot:0, op:.15, sfx:'page', t:'墙上的明信片', d:'背面写着「这里的海很绿」。寄件人是你自己。', faint:true},
     {k:'rug',      p:[-4.6,0,2.6], op:.40, sfx:'rustle', t:'旧地毯', d:'踩上去软软的，脚步声被吃掉了一半。'},
     {k:'slippers', p:[-5.3,0,3.8], rot:.4, op:.80, sfx:'rustle', t:'毛绒拖鞋', d:'换上它，就等于告诉自己：今天到此为止了。'},
@@ -6537,24 +6555,24 @@ const ITEMS = {
     {k:'carton',   p:[-4.1,0,-3.1], rot:.4, op:.40, sfx:'thud', t:'纸箱', d:'写着「以后再说」。今天不打开，也没关系。'}
   ],
   campus: [
-    {k:'noticeBoard',p:[-2.6,0,1.2], rot:.2, op:.80, sfx:'page', t:'公告栏', d:'讲座海报、招新、失物招领。世界在热闹，你可以只看一眼。'},
+    {k:'noticeBoard',p:[-2.6,0,1.2], rot:.2, op:.80, r:0.34, sfx:'page', t:'公告栏', d:'讲座海报、招新、失物招领。世界在热闹，你可以只看一眼。'},
     {k:'lightBox', p:[4.4,0,0.4], rot:-.3, op:.80, anim:'glow', sfx:'tick', t:'便利店灯箱', d:'还亮着。这个点还亮着的地方，都算一种温柔。'},
     {k:'trashBin', p:[5.0,0,2.4], op:.40, sfx:'thud', t:'垃圾桶', d:'把口袋里揉皱的纸扔掉吧，包括那张没交的申请。'},
     {k:'hydrant',  p:[-4.0,0,4.0], op:.40, sfx:'thud', t:'消防栓', d:'红色在夜里特别显眼。有些存在，就是为了以防万一。'},
-    {k:'guitar',   p:[-5.9,0,3.2], rot:.5, op:.80, sfx:'chime', t:'靠在树边的吉他', d:'弦松了，弹出来是闷闷的声音。跑调也没关系。'},
+    {k:'guitar',   p:[-5.9,0,3.2], rot:.5, op:.80, r:0.30, sfx:'chime', t:'靠在树边的吉他', d:'弦松了，弹出来是闷闷的声音。跑调也没关系。'},
     {k:'loungeChair',p:[6.6,0,-2.6], rot:-1.2, op:.40, sfx:'thud', t:'躺椅', d:'椅面朝着操场。躺着看天，是最古老的疗愈。'},
     {k:'balloon',  p:[2.2,0,2.4], op:.80, anim:'swing', sfx:'chime', t:'一只气球', d:'不知道谁松了手。它还在原地，好像在等一句话。'},
     {k:'kite',     p:[-1.8,0,-1.0], rot:.3, op:.15, anim:'float', sfx:'rustle', t:'断了线的风筝', d:'挂在树上，飞不走也不想走。偶尔这样也挺好。', faint:true},
     {k:'bleacher', p:[7.5,0,-6.5], rot:-1.57, op:.40, sfx:'thud', t:'看台', d:'第三排最边上，是看比赛最好的位置，也是一个人最好的位置。'},
     {k:'basketball',p:[1.5,0,4.4], op:.40, sfx:'thud', t:'篮球', d:'气不太足，拍起来闷闷的。今晚不适合比赛，适合随便投两个。'},
-    {k:'foodBowl', p:[-3.9,0,1.9], op:.15, sfx:'tick', t:'猫粮碗', d:'碗是空的，但边上有几粒。有人一直在喂它。', faint:true},
+    {k:'foodBowl', p:[-4.12,0,2.05], op:.15, r:0.24, sfx:'tick', t:'猫粮碗', d:'碗是空的，但边上有几粒。有人一直在喂它。', faint:true},
     {k:'manhole',  p:[2.2,0,3.6], op:.40, sfx:'thud', t:'井盖', d:'踩上去会「咚」一声。小时候你故意踩，现在也还会。'},
     {k:'signPost', p:[3.2,0,4.8], rot:.3, op:.80, sfx:'tick', t:'路牌', d:'「图书馆 200m」。其实你早就会走了，只是想看看方向。'},
     {k:'starChart',p:[0.6,0,5.6], rot:-.2, op:.40, sfx:'page', t:'星座牌', d:'今晚能看到三颗。认不出名字也没关系，看见就好。'},
-    {k:'canLitter',p:[-4.8,0,3.3], rot:.4, op:.40, sfx:'thud', t:'躺倒的易拉罐', d:'被踩扁了一半。它今天的运气也不太好。'},
+    {k:'canLitter',p:[-4.8,0,3.3], rot:.4, op:.40, r:0.26, sfx:'thud', t:'躺倒的易拉罐', d:'被踩扁了一半。它今天的运气也不太好。'},
     {k:'catNest',  p:[-3.9,0,-0.8], op:.40, sfx:'meow', t:'猫窝', d:'纸箱里铺着旧毛衣。原来有人一直在照顾这个小家伙。'},
     {k:'fireflyJar',p:[-2.1,0,4.5], op:.15, anim:'glow', sfx:'chime', t:'萤火罐', d:'小时候抓过一罐，第二天全不动了。后来你就只看，不抓了。', faint:true},
-    {k:'bookStack',p:[-4.6,0.52,2.5], rot:.2, op:.40, sfx:'page', t:'长椅上的书', d:'被人忘在这里，夹着公交卡当书签。'},
+    {k:'bookStack',p:[-4.92,0.48,1.95], rot:.2, op:.40, r:0.18, sfx:'page', t:'长椅上的书', d:'被人忘在这里，夹着公交卡当书签。'},
     {k:'cameraPhoto',p:[4.2,0,4.6], rot:.5, op:.40, sfx:'tick', t:'落灰的相机', d:'上一张照片是毕业那天。之后就一直躺着。'},
     {k:'scarf',    p:[-6.4,0,4.6], rot:.1, op:.40, sfx:'rustle', t:'长围巾', d:'夜风有点凉。围上，脖子暖了，人就容易松下来。'}
   ],
@@ -6569,10 +6587,10 @@ const ITEMS = {
     {k:'picnicMat',p:[8.5,0,7.5], rot:.4, op:.80, sfx:'rustle', t:'野餐垫', d:'格子有点褪色。上次铺开它，是一个很热的下午。'},
     {k:'camera',   p:[7.2,0,5.6], rot:-.5, op:.40, sfx:'tick', t:'相机', d:'取景框里是空的湖面。空的东西最上镜。'},
     {k:'tripod',   p:[9.8,0,5.2], op:.40, sfx:'thud', t:'三脚架', d:'稳得住相机，稳不住人。这很正常。'},
-    {k:'stoneStep',p:[2.6,0,-6.4], op:.40, sfx:'thud', t:'湿石阶', d:'长了薄薄一层苔。慢一点走，没人会怪你。'},
+    {k:'stoneStep',p:[2.75,0,-6.3], op:.40, r:0.32, sfx:'thud', t:'湿石阶', d:'长了薄薄一层苔。慢一点走，没人会怪你。'},
     {k:'mossRock', p:[-4.4,0,-2.6], op:.40, sfx:'thud', t:'苔石', d:'摸上去凉，是那种让人清醒的凉。'},
     {k:'thermos',  p:[6.4,0,9.4], op:.40, sfx:'cup', t:'保温杯', d:'拧开还有热气。看湖的时候，手也不该冷着。'},
-    {k:'paperBoat',p:[0.4,0.02,-7.4], rot:.6, op:.15, anim:'float', sfx:'water', t:'纸船', d:'折得很认真，还写了名字。它大概漂不了多远，但已经出发了。', faint:true},
+    {k:'paperBoat',p:[-0.25,0.19,-7.7], rot:.6, op:.15, r:0.30, anim:'float', sfx:'water', t:'纸船', d:'折得很认真，还写了名字。它大概漂不了多远，但已经出发了。', faint:true},
     {k:'fishingNet',p:[6.6,0,3.8], op:.40, sfx:'rustle', t:'抄网', d:'网眼很大，只留得住大的东西。小事就让它漏过去吧。'},
     {k:'reedBasket',p:[-2.4,0,2.4], op:.40, sfx:'rustle', t:'芦苇篮', d:'编得很粗，是手作的痕迹。不齐整，也很好看。'},
     {k:'woodenSign',p:[-3.4,0,0.8], rot:.4, op:.80, sfx:'thud', t:'木牌', d:'「水深，慢行」。这句其实不只是给游泳的人看的。'},
@@ -6582,7 +6600,7 @@ const ITEMS = {
   ],
   ginkgo: [
     {k:'easel',    p:[-3.0,0,9.0], rot:.35, op:.80, sfx:'thud', t:'画架', d:'画布上只有一层金黄。还没画完，也可能不打算画完。'},
-    {k:'paintBox', p:[-4.4,0,9.6], rot:.2, op:.40, sfx:'tick', t:'颜料盒', d:'赭石快用完了。整个秋天都是这个颜色。'},
+    {k:'paintBox', p:[-4.4,0,9.6], rot:.2, op:.40, r:0.34, sfx:'tick', t:'颜料盒', d:'赭石快用完了。整个秋天都是这个颜色。'},
     {k:'picnicBasket',p:[3.0,0,11.5], rot:-.3, op:.40, sfx:'thud', t:'野餐篮', d:'里面剩半个面包。一个人吃不完，也是正常的。'},
     {k:'scarf',    p:[-4.5,0,12.5], rot:.3, op:.80, anim:'swing', sfx:'rustle', t:'椅背上的围巾', d:'米色的，边上起了球。洗过很多次，还是很软。'},
     {k:'dog',      p:[1.8,0,12.8], rot:-.4, op:.80, sfx:'meow', t:'打盹的狗', d:'它抬眼看你一下，又睡回去。被这样的信任击中了一下。'},
@@ -6603,7 +6621,7 @@ const ITEMS = {
     {k:'umbrella', p:[-4.8,0,15.0], rot:.6, op:.40, sfx:'rustle', t:'撑开的伞', d:'没下雨，却撑着。你说这样有安全感。'}
   ],
   hall: [
-    {k:'harp',     p:[-6.5,0.5,-6.5], rot:.5, op:.80, anim:'swing', sfx:'chime', t:'竖琴', d:'没人弹，弦自己在空气里嗡。它也在等一个开始。'},
+    {k:'harp',     p:[-6.5,0.5,-6.5], rot:.5, op:.80, r:0.55, anim:'swing', sfx:'chime', t:'竖琴', d:'没人弹，弦自己在空气里嗡。它也在等一个开始。'},
     {k:'celloCase',p:[6.2,0.5,-6.8], rot:-.4, op:.40, sfx:'thud', t:'大提琴盒', d:'贴满了各地的行李贴。这个人去过很多地方，也练习过很多次。'},
     {k:'timpani',  p:[7.6,0.5,-9.0], op:.40, sfx:'thud', t:'定音鼓', d:'轻轻一按，鼓面会凹下去一点点，然后弹回来。'},
     {k:'baton',    p:[1.7,0.55,-1.4], rot:.6, op:.15, sfx:'tick', t:'指挥棒', d:'很轻，比想象中轻。举起它的那一刻，整个乐队都在等。', faint:true},
@@ -6613,14 +6631,14 @@ const ITEMS = {
     {k:'trophy',   p:[9.0,0.5,-3.0], op:.40, anim:'glow', sfx:'chime', t:'奖杯', d:'底座上刻着年份。你已经不太记得那场比赛了。'},
     {k:'poster',   p:[-7.6,0.5,-14.8], op:.40, sfx:'page', t:'演出海报', d:'主角的脸被灯光打得发白。那时你以为必须做到完美。'},
     {k:'wallClockHall',p:[6.8,8.0,-14.8], op:.15, sfx:'tick', t:'墙上的钟', d:'指针走在开幕前一分钟，一直停在那里。', faint:true},
-    {k:'carpet',   p:[0,0.51,-1.6], op:.40, sfx:'rustle', t:'红地毯', d:'边角磨起了毛。走过很多次，也走过很多人。'},
+    {k:'carpet',   p:[0,0.51,-1.6], op:.40, r:0.34, sfx:'rustle', t:'红地毯', d:'边角磨起了毛。走过很多次，也走过很多人。'},
     {k:'micStand', p:[2.6,0.5,-8.0], op:.40, sfx:'tick', t:'立式麦克风', d:'没有声音的时候，它像一支倒插的麦穗。'},
     {k:'waterBottle',p:[-1.7,0.55,-1.5], op:.40, sfx:'cup', t:'谱架旁的水瓶', d:'喝了一半。紧张的时候，人会很渴。'},
     {k:'musicStands',p:[-4.4,0.5,-7.6], op:.40, sfx:'page', t:'一排谱架', d:'空着，但都摆得整整齐齐，像还在等乐队。'},
     {k:'curtainRope',p:[9.0,0.5,-12.5], rot:.1, op:.15, anim:'swing', sfx:'chime', t:'幕布绳', d:'拉一下，幕就开了。你也可以选择先不拉。', faint:true},
     {k:'violin',   p:[3.8,0.5,-7.2], rot:.8, op:.80, sfx:'chime', t:'搁在琴盒上的小提琴', d:'琴弓松了。它今天只想躺着。'},
-    {k:'sheetMusicPile',p:[-5.4,0.5,-2.2], rot:.2, op:.40, sfx:'page', t:'一叠乐谱', d:'边角写着很多铅笔字：「慢一点」「别怕」。'},
-    {k:'stageMark',p:[0,0.52,-4.4], op:.40, sfx:'tick', t:'地标胶带', d:'一个十字。站上去，就是舞台中央。'},
+    {k:'sheetMusicPile',p:[-5.55,0.5,-2.32], rot:.2, op:.40, r:0.34, sfx:'page', t:'一叠乐谱', d:'边角写着很多铅笔字：「慢一点」「别怕」。'},
+    {k:'stageMark',p:[0,0.52,-4.4], op:.40, r:0.34, sfx:'tick', t:'地标胶带', d:'一个十字。站上去，就是舞台中央。'},
     {k:'seatCushion',p:[5.0,0.5,-0.9], rot:.2, op:.40, sfx:'rustle', t:'观众席坐垫', d:'陷下去一块，是常常坐这个位置的人留下的。'},
     {k:'flowerBasket',p:[-7.8,0.5,-3.2], op:.40, sfx:'chime', t:'花篮', d:'卡片上写着「演出成功」。字是别人写的，祝福是真的。'}
   ]
