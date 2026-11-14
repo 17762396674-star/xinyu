@@ -4157,14 +4157,46 @@ Landmark.stream = function(g, z, M){
     for(let i=0;i<26;i++){ c.strokeStyle='rgba(160,220,235,'+(0.05+Math.random()*0.14)+')'; c.lineWidth=1+Math.random()*2; c.beginPath(); const y=Math.random()*h; c.moveTo(0,y); c.bezierCurveTo(w*0.3,y+8,w*0.6,y-8,w,y); c.stroke(); }
   });
   tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(6,1);
-  const water=new THREE.Mesh(new THREE.PlaneGeometry(64,4.6), new THREE.MeshStandardMaterial({ map:tex, color:'#9fd6e2', emissive:'#1e4a56', emissiveIntensity:.55, roughness:.22, metalness:.3, transparent:true, opacity:.92 }));
-  water.rotation.x=-Math.PI/2; water.position.set(0,0.04,z); g.add(water);
-  // 河岸
-  [-2.9,2.9].forEach(dz=>{
-    const bank=box(64,0.22,0.9,M.stone); bank.position.set(0,0.06,z+dz); g.add(bank);
+  // 水：夜里应该是深色 + 反光，而不是一条自发光的浅蓝带子
+  const water=new THREE.Mesh(new THREE.PlaneGeometry(66,4.0), new THREE.MeshStandardMaterial({
+    map:tex, color:'#3a6675', emissive:'#102b33', emissiveIntensity:.30,
+    roughness:.14, metalness:.55, transparent:true, opacity:.90 }));
+  water.rotation.x=-Math.PI/2; water.position.set(0,0.035,z); g.add(water);
+  // 浅水过渡带：靠近岸边的水色更浅，消掉「水/草」之间的硬直边
+  [-1,1].forEach(sd=>{
+    const sh=new THREE.Mesh(new THREE.PlaneGeometry(66,0.85), new THREE.MeshBasicMaterial({
+      color:'#7fb6c4', transparent:true, opacity:.22, depthWrite:false }));
+    sh.rotation.x=-Math.PI/2; sh.position.set(0,0.045,z+sd*1.55); g.add(sh);
   });
-  // 石头
-  for(let i=0;i<12;i++){ const st=sph(0.16+Math.random()*0.2,M.stone,6); st.position.set(-30+Math.random()*60, 0.08, z+(Math.random()-0.5)*4.2); st.scale.y=0.6; g.add(st); }
+  // 河岸：碎石 + 草丛交错，边缘不再是直线。全部合并成两个网格（原来 135 次绘制）
+  {
+    const stones=[], tufts=[];
+    const _m4=new THREE.Matrix4(), _q4=new THREE.Quaternion(), _e4=new THREE.Euler(), _v4=new THREE.Vector3();
+    const put=(arr,geo,x,y,zz,sx,sy,sz,ry,rz,c)=>{
+      _e4.set(0,ry||0,rz||0); _q4.setFromEuler(_e4);
+      _m4.compose(_v4.set(x,y,zz), _q4, new THREE.Vector3(sx,sy,sz));
+      arr.push({ geo, matrix:_m4.clone(), c0:c, c1:c });
+    };
+    for(let i=0;i<80;i++){
+      const bx=-33+Math.random()*66;
+      const sd=Math.random()<0.5?-1:1;
+      const bz=z+sd*(1.95+Math.random()*1.15);
+      put(stones, gSphG(0.10+Math.random()*0.20, 7), bx, 0.03, bz, 1.2, 0.5+Math.random()*0.3, 0.95,
+          Math.random()*3.1, 0, '#6b6a5e');
+    }
+    for(let i=0;i<9;i++){
+      put(stones, gSphG(0.14+Math.random()*0.18, 7), -30+Math.random()*60, 0.06,
+          z+(Math.random()-0.5)*2.6, 1.15, 0.62, 0.95, Math.random()*3.1, 0, '#5f5e54');
+    }
+    for(let i=0;i<46;i++){
+      const bx=-33+Math.random()*66, sd=Math.random()<0.5?-1:1;
+      const bz=z+sd*(2.0+Math.random()*0.9);
+      put(tufts, gConeG(0.10+Math.random()*0.07, 0.22+Math.random()*0.16, 5), bx, 0.10, bz,
+          1,1,1, Math.random()*3.1, (Math.random()-0.5)*0.5, '#2f5740');
+    }
+    g.add(new THREE.Mesh(mergeGeos(stones), vcMat({ rough:1, metal:0 })));
+    g.add(new THREE.Mesh(mergeGeos(tufts), vcMat({ rough:1, metal:0 })));
+  }
   return { water, tex };
 };
 
@@ -4491,9 +4523,9 @@ SceneBuilders.library = function(){
   const sill=new THREE.Mesh(new THREE.BoxGeometry(10.6,0.25,0.5), frameMat); sill.position.set(0,2.3,-7.85); g.add(sill);
 
   // 书架（程序化书本）
-  const bookCols=['#a04a3c','#3f5f8a','#4f7046','#a9853a','#5c5c68','#718397','#8a3f52','#3a7480','#8a6ab0','#b0a06a'];
+  const bookCols=['#6f3a30','#33445f','#3c5340','#7a6234','#4a4a52','#565f6b','#6a3444','#37606a','#5f4b78','#8a7a4e','#2f3a44','#6b5648','#4a3f52','#3e5048'];
   const shelfShell=texMat({ tex:TEX.wood(13), color:'#8a6440', repeat:[2,1], rough:.72, bump:.018 });
-  const shelfFace=texMat({ tex:TEX.wood(14), color:'#a8834f', repeat:[2,1], rough:.7, bump:.016 });
+  const shelfFace=texMat({ tex:TEX.wood(14), color:'#8a6a44', repeat:[2,1], rough:.74, bump:.016 });
   function shelf(x,z,ry,n){
     const s=new THREE.Group(); s.position.set(x,0,z); s.rotation.y=ry;
     const shell=shelfShell;
@@ -4502,23 +4534,33 @@ SceneBuilders.library = function(){
     s.add(put(box(0.18,2.6,0.6,shell),-1.01,1.3,0));
     s.add(put(box(0.18,2.6,0.6,shell),1.01,1.3,0));
     s.add(put(box(2.2,0.18,0.6,shell),0,2.6,0));
-    for(let i=0;i<4;i++) s.add(put(box(2.0,0.1,0.55,shellFace2),0,0.6+i*0.62,0));
-    const count=4*Math.max(8,n);
-    const geo=new THREE.BoxGeometry(0.1,0.3,0.32);
-    const mat=new THREE.MeshStandardMaterial({ color:0xffffff, roughness:.55, emissive:'#4a3a20', emissiveIntensity:.62 });
+    for(let i=0;i<3;i++) s.add(put(box(2.0,0.1,0.55,shellFace2),0,0.62+i*0.63,0));
+    const count=560;
+    const geo=new THREE.BoxGeometry(1,1,1);          // 单位立方体，尺寸全部由矩阵控制
+    const mat=new THREE.MeshStandardMaterial({ color:0xffffff, roughness:.62, emissive:'#3a2e1c', emissiveIntensity:.16 });
     const inst=new THREE.InstancedMesh(geo,mat,count);
     const m=new THREE.Matrix4(), col=new THREE.Color(); let k=0;
-    for(let row=0; row<4; row++){
-      let xoff=-0.92;
-      while(xoff<0.9 && k<count){
-        const bw=0.06+rnd()*0.06, bh=0.16+rnd()*0.14;
+    for(let row=0; row<3; row++){
+      const baseY=0.67+row*0.63;
+      let xoff=-0.94;
+      while(xoff<0.90 && k<count){
+        // 随机留出空位（书被借走的位置），书架不至于成为一堵彩墙
+        if(rnd()<0.08){ xoff += 0.06+rnd()*0.10; continue; }
+        // 书脊按真实比例：宽 3~5.6cm、高 17~24.5cm、厚 15~20cm（1cm≈0.02 场景单位）
+        const bw=0.030+rnd()*0.026, bh=0.16+rnd()*0.085, bt=0.15+rnd()*0.05;
         col.set(bookCols[Math.floor(rnd()*bookCols.length)]);
-        m.makeScale(bw*2, bh, 0.6);
-        m.setPosition(xoff+bw, 0.72+row*0.62, (rnd()-0.5)*0.1);
-        inst.setMatrixAt(k,m); inst.setColorAt(k,col); xoff+=bw*2+0.012; k++;
+        // 少量书斜靠
+        const tilt=(rnd()<0.05) ? (rnd()-0.5)*0.26 : 0;
+        m.makeRotationZ(tilt);
+        m.scale(new THREE.Vector3(bw, bh, bt));
+        m.setPosition(xoff+bw*0.5, baseY+bh*0.5, -0.10+(rnd()-0.5)*0.05);
+        inst.setMatrixAt(k,m); inst.setColorAt(k,col);
+        xoff += bw + 0.0045; k++;
       }
     }
-    inst.count=k; s.add(inst);
+    inst.count=k;
+    if(inst.instanceColor) inst.instanceColor.needsUpdate=true;
+    s.add(inst);
     g.add(s);
   }
   shelf(-3.2,-5,0,12); shelf(3.2,-5,0,12);
@@ -5534,50 +5576,107 @@ SceneBuilders.hall = function(){
   pianist.scale.setScalar(1.35);
   pianist.rotation.y=Math.PI;                          // 转 180°：背对观众、面朝键盘
   g.add(pianist);
-  const suit=new THREE.MeshStandardMaterial({ color:'#3a3d50', roughness:.58, metalness:.14 });
-  const coat=new THREE.MeshStandardMaterial({ color:'#20222c', roughness:.68 });
-  const skinMat=new THREE.MeshStandardMaterial({ color:'#d9a37a', roughness:.6 });
-  const hairMat=new THREE.MeshStandardMaterial({ color:'#180f0a', roughness:.8 });
-  const shirtMat=new THREE.MeshStandardMaterial({ color:'#ede8dd', roughness:.55 });
-  const bowMat=new THREE.MeshStandardMaterial({ color:'#0d0d12', roughness:.4, metalness:.35 });
+  const suit=new THREE.MeshStandardMaterial({ color:'#3a3d50', roughness:.62, metalness:.10 });
+  const coat=new THREE.MeshStandardMaterial({ color:'#20222c', roughness:.70 });
+  const skinMat=new THREE.MeshStandardMaterial({ color:'#d9a37a', roughness:.66 });
+  const hairMat=new THREE.MeshStandardMaterial({ color:'#1b120c', roughness:.86 });
+  const shirtMat=new THREE.MeshStandardMaterial({ color:'#ede8dd', roughness:.60 });
+  const bowMat=new THREE.MeshStandardMaterial({ color:'#0d0d12', roughness:.45, metalness:.30 });
+  const lipMat=new THREE.MeshStandardMaterial({ color:'#8a5548', roughness:.72 });
 
-  // 双腿（西裤）：大腿 → 小腿 → 皮鞋
+  // 双腿（西裤）：大腿 → 膝 → 小腿 → 皮鞋，膝盖处有转折而不是一刀切断
   [-0.15,0.15].forEach(x=>{
-    const thigh=box(0.16,0.15,0.5,suit); thigh.position.set(x,0.0,0.0); pianist.add(thigh);
-    const shin=box(0.14,0.4,0.14,suit); shin.position.set(x,-0.24,0.24); pianist.add(shin);
-    const shoe=box(0.14,0.1,0.3,coat); shoe.position.set(x,-0.42,0.26); pianist.add(shoe);
+    const thigh=box(0.175,0.18,0.50,suit); thigh.position.set(x,-0.015,0.02); pianist.add(thigh);
+    const knee=sph(0.084,suit,10); knee.scale.set(1.02,0.95,1.0); knee.position.set(x,-0.115,0.27); pianist.add(knee);
+    const shin=box(0.145,0.38,0.145,suit); shin.position.set(x,-0.285,0.28); pianist.add(shin);
+    const shoe=box(0.150,0.095,0.30,coat); shoe.position.set(x,-0.475,0.30); pianist.add(shoe);
+    const heel=box(0.125,0.045,0.10,coat); heel.position.set(x,-0.508,0.19); pianist.add(heel);
   });
 
-  // 躯干（收腰西服）+ 肩部 + 衬衫前襟 + 领结
-  pianist.add(put(box(0.3,0.42,0.3,suit), 0,0.24,-0.32));      // 腰
-  pianist.add(put(box(0.44,0.34,0.3,suit), 0,0.50,-0.30));      // 胸
-  pianist.add(put(box(0.54,0.12,0.32,suit), 0,0.72,-0.30));     // 肩
-  pianist.add(put(box(0.18,0.34,0.045,shirtMat), 0,0.50,-0.12)); // 衬衫
-  pianist.add(put(box(0.14,0.07,0.09,bowMat), 0,0.70,-0.08));    // 领结
+  // 躯干：腰 → 胸 → 肩三层收分；肩板收窄，两侧加斜块把方肩削圆
+  pianist.add(put(box(0.32,0.44,0.30,suit), 0,0.24,-0.32));      // 腰
+  pianist.add(put(box(0.42,0.34,0.30,suit), 0,0.50,-0.30));      // 胸
+  pianist.add(put(box(0.46,0.13,0.31,suit), 0,0.715,-0.30));     // 肩
+  [-1,1].forEach(sd=>{
+    const sh=box(0.135,0.095,0.30,suit);
+    sh.position.set(sd*0.222,0.672,-0.30); sh.rotation.z=-sd*0.34; pianist.add(sh);
+  });
+  // 衬衫前襟贴住胸口（不再是一块浮起的板）+ 翻领 + 领结（落在领口，不再浮在胸口）
+  pianist.add(put(box(0.150,0.37,0.026,shirtMat), 0,0.605,-0.137));
+  [-1,1].forEach(sd=>{
+    const lap=box(0.055,0.34,0.020,suit);
+    lap.position.set(sd*0.080,0.605,-0.128); lap.rotation.z=sd*0.13; pianist.add(lap);
+  });
+  pianist.add(put(box(0.100,0.050,0.046,bowMat), 0,0.756,-0.126));
+  pianist.add(put(box(0.028,0.034,0.030,bowMat), 0,0.756,-0.130));
 
-  // 颈 + 头 + 头发 + 眼睛
-  pianist.add(put(cyl(0.045,0.05,0.16,skinMat), 0,0.82,-0.25));      // 颈
-  pianist.add(put(sph(0.155,skinMat), 0,0.96,-0.20));                // 头
-  const hair=sph(0.165,hairMat); hair.position.set(0,1.01,-0.28); hair.scale.set(0.98,1.02,1.0); pianist.add(hair); // 发顶与后脑
-  [-0.055,0.055].forEach(x=> pianist.add(put(sph(0.018,bowMat), x,0.98,-0.04))); // 眼睛
+  // 颈：露出一段，头不再直接坐在肩上
+  pianist.add(put(cyl(0.044,0.052,0.13,skinMat,12), 0,0.795,-0.230));
+
+  // 头骨 + 下颌：发际线 1.03 / 眉 0.982 / 眼 0.964 / 鼻 0.932 / 嘴 0.892 / 下巴 0.834
+  pianist.add(put(sph(0.118,skinMat,20), 0,0.962,-0.205));
+  {
+    const jaw=sph(0.100,skinMat,16); jaw.scale.set(0.91,0.80,0.96);
+    jaw.position.set(0,0.914,-0.201); pianist.add(jaw);
+  }
+  [-1,1].forEach(sd=>{
+    const ear=sph(0.025,skinMat,8); ear.scale.set(0.56,1.18,0.82);
+    ear.position.set(sd*0.116,0.952,-0.196); pianist.add(ear);
+  });
+  // 五官：收细到「远看有神情、近看不做作」的程度
+  [-1,1].forEach(sd=>{
+    const eye=sph(0.0122,bowMat,10); eye.scale.set(1.36,0.80,0.62);
+    eye.position.set(sd*0.048,0.964,-0.090); pianist.add(eye);
+    const gl=sph(0.0036,new THREE.MeshBasicMaterial({color:'#e8dcc8'}),6);
+    gl.position.set(sd*0.054,0.969,-0.097); pianist.add(gl);
+    const brow=box(0.031,0.0065,0.009,new THREE.MeshStandardMaterial({color:'#2b1e15',roughness:.9}));
+    brow.position.set(sd*0.049,0.983,-0.090); brow.rotation.z=sd*0.05; pianist.add(brow);
+  });
+  {
+    // 鼻：一段贴合脸型的窄棱，靠明暗而不是靠颜色区分
+    const noseMat=new THREE.MeshStandardMaterial({ color:'#cf9873', roughness:.74 });
+    const nose=box(0.019,0.038,0.018,noseMat);
+    nose.position.set(0,0.940,-0.082); nose.rotation.x=0.09; pianist.add(nose);
+    const ntip=sph(0.0135,noseMat,10); ntip.scale.set(1.0,0.86,0.96);
+    ntip.position.set(0,0.921,-0.085); pianist.add(ntip);
+    // 嘴：一条浅色唇缝，不是深红方块
+    const mouth=box(0.042,0.0075,0.009,new THREE.MeshStandardMaterial({color:'#a5715f',roughness:.8}));
+    mouth.position.set(0,0.901,-0.101); pianist.add(mouth);
+  }
+
+  // 短发：贴头的发壳（发际线在眉上方）+ 后半球（后脑）+ 两侧鬓角 + 后颈发脚
+  {
+    const top=new THREE.SphereGeometry(0.1155,24,14,0,Math.PI*2,0,Math.PI*0.44);
+    top.scale(1.0,0.92,1.01);
+    const tm=new THREE.Mesh(top,hairMat); tm.position.set(0,1.002,-0.206); tm.rotation.x=-0.22; pianist.add(tm);
+    const back=new THREE.SphereGeometry(0.1205,26,18,Math.PI*0.96,Math.PI*1.08,0,Math.PI*0.82);
+    back.scale(0.99,1.00,1.00);
+    const bm=new THREE.Mesh(back,hairMat); bm.position.set(0,0.960,-0.208); pianist.add(bm);
+    const nape=sph(0.072,hairMat,12); nape.scale.set(1.04,0.82,0.86);
+    nape.position.set(0,0.886,-0.240); pianist.add(nape);
+  }
 
   // 燕尾服后摆（背面两片垂尾）
-  pianist.add(put(box(0.44,0.4,0.06,coat), 0,0.20,-0.46));      // 背板
+  pianist.add(put(box(0.44,0.40,0.06,coat), 0,0.20,-0.46));      // 背板
   [-0.13,0.13].forEach(x=>{ const t=box(0.15,0.5,0.05,coat); t.position.set(x,-0.06,-0.50); pianist.add(t); });
 
-  // 双臂：上臂 → 前臂（绕肘关节摆动）→ 手，肩-肘-腕自然衔接
+  // 双臂：上臂 → 前臂（绕肘关节摆动）→ 手掌 + 拇指
   const _up=new THREE.Vector3(0,1,0);
   const limb=(rt,rb,mat,A,B)=>{ const d=B.clone().sub(A); const L=d.length(); d.normalize(); const m=cyl(rt,rb,L,mat,12); m.quaternion.setFromUnitVectors(_up,d); m.position.copy(A).addScaledVector(d,L/2); return m; };
   const hands=[];
   [-1,1].forEach(s=>{
-    const SH=new THREE.Vector3(s*0.30,0.64,-0.38);
-    const EL=new THREE.Vector3(s*0.30,0.40,0.06);
-    const HN=new THREE.Vector3(s*0.23,0.17,0.60);
-    pianist.add(limb(0.06,0.05,suit,SH,EL));                        // 上臂
+    const SH=new THREE.Vector3(s*0.265,0.665,-0.360);
+    const EL=new THREE.Vector3(s*0.288,0.400,0.055);
+    const HN=new THREE.Vector3(s*0.225,0.170,0.600);
+    pianist.add(limb(0.058,0.047,suit,SH,EL));                        // 上臂
     const fg=new THREE.Group(); fg.position.copy(EL); pianist.add(fg); // 前臂组（肘为轴）
     const rel=HN.clone().sub(EL);
-    fg.add(limb(0.055,0.05,suit,new THREE.Vector3(0,0,0),rel));     // 前臂
-    const hand=sph(0.06,skinMat); hand.position.copy(rel); fg.add(hand); // 手
+    fg.add(limb(0.052,0.046,suit,new THREE.Vector3(0,0,0),rel));      // 前臂
+    const hand=box(0.078,0.056,0.115,skinMat);
+    hand.position.copy(rel).add(new THREE.Vector3(0,-0.012,0.040));
+    hand.rotation.x=0.34; fg.add(hand);
+    const thumb=sph(0.023,skinMat,8); thumb.scale.set(0.9,0.8,1.3);
+    thumb.position.copy(rel).add(new THREE.Vector3(-s*0.038,-0.008,0.028)); fg.add(thumb);
     hands.push(fg);
   });
   pianist.userData.hands=hands;
